@@ -179,89 +179,82 @@ export default function Calendar({ activities }: { activities: Activity[] }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-0.5 sm:gap-1 text-[10px] sm:text-xs text-neutral-500">
-        {weekdayLabels.map((d) => (
-          <div key={d} className="px-1 sm:px-2 py-1 uppercase tracking-wider">
-            <span className="sm:hidden">{d.charAt(0)}</span>
-            <span className="hidden sm:inline">{d}</span>
-          </div>
-        ))}
-      </div>
-
-      <div className={`grid grid-cols-7 gap-0.5 sm:gap-1 ${view === "week" ? "" : "auto-rows-fr"}`}>
-        {days.map((d) => {
-          const key = format(d, "yyyy-MM-dd");
-          const acts = byDay.get(key) ?? [];
-          const isToday = isSameDay(d, today);
-          const muted = view === "month" && !isSameMonth(d, cursor);
-          const limit = view === "week" ? 6 : 3;
-          const limitMobile = view === "week" ? 4 : 2;
-          return (
-            <div
-              key={key}
-              className={`rounded sm:rounded-md border p-1 sm:p-2 ${
-                view === "week" ? "min-h-32 sm:min-h-44" : "min-h-16 sm:min-h-24"
-              } ${
-                isToday
-                  ? "border-orange-500/50 bg-orange-500/5"
-                  : "border-neutral-800 bg-neutral-900/40"
-              } ${muted ? "opacity-40" : ""}`}
-            >
-              <div className="flex items-center justify-between">
-                <span
-                  className={`text-[10px] sm:text-xs ${
-                    isToday ? "text-orange-400 font-semibold" : "text-neutral-400"
-                  }`}
-                >
-                  {format(d, "d")}
-                </span>
-                {acts.length > 1 && (
-                  <span className="text-[9px] sm:text-[10px] text-neutral-500">{acts.length}</span>
-                )}
+      <div className="-mx-3 sm:mx-0 px-3 sm:px-0 overflow-x-auto">
+        <div className="min-w-[700px] sm:min-w-0 space-y-1">
+          <div className="grid grid-cols-7 gap-1 text-xs text-neutral-500">
+            {weekdayLabels.map((d) => (
+              <div key={d} className="px-2 py-1 uppercase tracking-wider">
+                {d}
               </div>
-              <ul className="mt-1 space-y-0.5 sm:space-y-1">
-                {acts.slice(0, limit).map((a, i) => (
-                  <li key={a.id} className={i >= limitMobile ? "hidden sm:block" : ""}>
-                    <button
-                      onClick={() => setSelected(a)}
-                      className={`w-full text-left rounded px-1 py-0.5 sm:px-1.5 sm:py-1 text-[9px] sm:text-[11px] leading-tight ${colorFor(
-                        a.type
-                      )} bg-opacity-90 hover:brightness-110`}
-                      title={`${a.name} · ${a.durationMin}m${
-                        a.zone2Pct !== null ? ` · Z2 ${a.zone2Pct}%` : ""
+            ))}
+          </div>
+
+          <div className={`grid grid-cols-7 gap-1 ${view === "week" ? "" : "auto-rows-fr"}`}>
+            {days.map((d) => {
+              const key = format(d, "yyyy-MM-dd");
+              const acts = byDay.get(key) ?? [];
+              const isToday = isSameDay(d, today);
+              const muted = view === "month" && !isSameMonth(d, cursor);
+              const limit = view === "week" ? 6 : 3;
+              return (
+                <div
+                  key={key}
+                  className={`rounded-md border p-2 ${
+                    view === "week" ? "min-h-44" : "min-h-24"
+                  } ${
+                    isToday
+                      ? "border-orange-500/50 bg-orange-500/5"
+                      : "border-neutral-800 bg-neutral-900/40"
+                  } ${muted ? "opacity-40" : ""}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span
+                      className={`text-xs ${
+                        isToday ? "text-orange-400 font-semibold" : "text-neutral-400"
                       }`}
                     >
-                      <div className="truncate text-white font-medium flex items-center gap-1 sm:gap-1.5">
-                        <span className="inline-flex h-3 w-3 sm:h-4 sm:w-4 shrink-0 items-center justify-center rounded bg-black/30 text-[8px] sm:text-[10px] leading-none">
-                          {iconFor(a.type)}
-                        </span>
-                        <span className="truncate hidden sm:inline">{a.name}</span>
-                        <span className="truncate sm:hidden text-white/90">{a.durationMin}m</span>
-                      </div>
-                      <div className="hidden sm:block text-white/85">
-                        {a.durationMin}m
-                        {a.zone2Pct !== null ? ` · Z2 ${a.zone2Pct}%` : ""}
-                      </div>
-                    </button>
-                  </li>
-                ))}
-                {acts.length > limitMobile && acts.length <= limit && (
-                  <li className="hidden sm:block" />
-                )}
-                {acts.length > limit && (
-                  <li className="text-[9px] sm:text-[10px] text-neutral-500 px-1 sm:px-1.5">
-                    +{acts.length - limit} more
-                  </li>
-                )}
-                {acts.length > limitMobile && acts.length <= limit && (
-                  <li className="text-[9px] text-neutral-500 px-1 sm:hidden">
-                    +{acts.length - limitMobile}
-                  </li>
-                )}
-              </ul>
-            </div>
-          );
-        })}
+                      {format(d, "d")}
+                    </span>
+                    {acts.length > 1 && (
+                      <span className="text-[10px] text-neutral-500">{acts.length}</span>
+                    )}
+                  </div>
+                  <ul className="mt-1.5 space-y-1">
+                    {acts.slice(0, limit).map((a) => (
+                      <li key={a.id}>
+                        <button
+                          onClick={() => setSelected(a)}
+                          className={`w-full text-left rounded px-1.5 py-1 text-[11px] leading-tight ${colorFor(
+                            a.type
+                          )} bg-opacity-90 hover:brightness-110`}
+                          title={`${a.name} · ${a.durationMin}m${
+                            a.zone2Pct !== null ? ` · Z2 ${a.zone2Pct}%` : ""
+                          }`}
+                        >
+                          <div className="truncate text-white font-medium flex items-center gap-1.5">
+                            <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded bg-black/30 text-[10px] leading-none">
+                              {iconFor(a.type)}
+                            </span>
+                            <span className="truncate">{a.name}</span>
+                          </div>
+                          <div className="text-white/85">
+                            {a.durationMin}m
+                            {a.zone2Pct !== null ? ` · Z2 ${a.zone2Pct}%` : ""}
+                          </div>
+                        </button>
+                      </li>
+                    ))}
+                    {acts.length > limit && (
+                      <li className="text-[10px] text-neutral-500 px-1.5">
+                        +{acts.length - limit} more
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {selected && <ActivityModal activity={selected} onClose={() => setSelected(null)} />}
