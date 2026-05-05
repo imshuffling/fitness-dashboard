@@ -57,22 +57,15 @@ export default async function Home() {
     );
   }
 
-  if (isIntervalsConfigured()) {
-    try {
-      trainingLoad = await getTrainingLoadTrend(90);
-    } catch (e) {
-      intervalsError = (e as Error).message;
-    }
-  }
-
   garminLinked = await isGarminConnected();
-  if (garminLinked) {
-    try {
-      garminWeek = await getGarminWeekSummary();
-    } catch (e) {
-      garminError = (e as Error).message;
-    }
-  }
+  const [intervalsRes, garminRes] = await Promise.allSettled([
+    isIntervalsConfigured() ? getTrainingLoadTrend(90) : Promise.resolve([] as LoadPoint[]),
+    garminLinked ? getGarminWeekSummary() : Promise.resolve([] as GarminDailySummary[]),
+  ]);
+  if (intervalsRes.status === "fulfilled") trainingLoad = intervalsRes.value;
+  else intervalsError = (intervalsRes.reason as Error).message;
+  if (garminRes.status === "fulfilled") garminWeek = garminRes.value;
+  else garminError = (garminRes.reason as Error).message;
 
   const trendLabel: Record<string, string> = {
     improving: "↓ Improving",

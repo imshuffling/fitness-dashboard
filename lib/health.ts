@@ -93,21 +93,21 @@ async function cacheSet<T>(key: string, val: T, ttlSeconds: number): Promise<voi
 }
 
 export async function clearSummaryCache(): Promise<number> {
+  const patterns = ["summary:v1:*", "intervals:load:*", "garmin:week:*", "garmin:dash:*"];
   const r = redis();
   if (r) {
-    let cursor = "0";
     let deleted = 0;
-    do {
-      const res = (await r.scan(cursor, { match: "summary:v1:*", count: 100 })) as [
-        string,
-        string[]
-      ];
-      cursor = res[0];
-      if (res[1].length > 0) {
-        await r.del(...res[1]);
-        deleted += res[1].length;
-      }
-    } while (cursor !== "0");
+    for (const pattern of patterns) {
+      let cursor = "0";
+      do {
+        const res = (await r.scan(cursor, { match: pattern, count: 100 })) as [string, string[]];
+        cursor = res[0];
+        if (res[1].length > 0) {
+          await r.del(...res[1]);
+          deleted += res[1].length;
+        }
+      } while (cursor !== "0");
+    }
     return deleted;
   }
   // Local file fallback
@@ -115,7 +115,12 @@ export async function clearSummaryCache(): Promise<number> {
     const files = await fs.readdir(CACHE_DIR);
     let deleted = 0;
     for (const f of files) {
-      if (f.startsWith("summary_v1_")) {
+      if (
+        f.startsWith("summary_v1_") ||
+        f.startsWith("intervals_load_") ||
+        f.startsWith("garmin_week_") ||
+        f.startsWith("garmin_dash_")
+      ) {
         await fs.unlink(path.join(CACHE_DIR, f));
         deleted++;
       }
