@@ -155,15 +155,17 @@ export default async function Home() {
         )}
 
         <section className="rounded-xl bg-neutral-900 border border-neutral-800 p-3 sm:p-5">
-          <div className="flex items-baseline justify-between mb-3">
-            <h2 className="text-lg font-semibold">Garmin wellness · last 7 days</h2>
+          <div className="flex items-baseline justify-between gap-2 mb-3">
+            <h2 className="text-base sm:text-lg font-semibold whitespace-nowrap">
+              Garmin · 7d
+            </h2>
             {garminLinked ? (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
                 <Link
                   href="/garmin"
                   className="text-xs text-orange-400 hover:text-orange-300"
                 >
-                  Full Garmin dashboard →
+                  Full dashboard →
                 </Link>
                 <form action="/api/garmin/logout" method="POST">
                   <button
