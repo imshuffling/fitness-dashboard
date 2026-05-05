@@ -76,7 +76,8 @@ async function enrichActivity(
   a: StravaActivity,
   targetWatts: number
 ): Promise<ActivityEnrichment> {
-  const cacheKey = `activity:v1:${a.id}:${targetWatts}`;
+  // v2 = bumped after HR zone bands changed (2026-05-05)
+  const cacheKey = `activity:v2:${a.id}:${targetWatts}`;
   const cached = await cacheGet<ActivityEnrichment>(cacheKey);
   if (cached) return cached;
 
