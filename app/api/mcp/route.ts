@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 async function handle(req: Request): Promise<Response> {
-  const unauth = requireBearer(req);
+  const unauth = await requireBearer(req);
   if (unauth) return unauth;
 
   const server = createMcpServer();

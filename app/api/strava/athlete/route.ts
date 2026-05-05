@@ -2,7 +2,7 @@ import { requireBearer } from "@/lib/auth";
 import { getAthleteProfile } from "@/lib/strava";
 
 export async function GET(req: Request) {
-  const unauth = requireBearer(req);
+  const unauth = await requireBearer(req);
   if (unauth) return unauth;
   try {
     return Response.json(await getAthleteProfile());

@@ -12,6 +12,11 @@ const PUBLIC_PATHS = [
   "/api/garmin/wellness",
   "/auth/strava/callback",
   "/favicon.ico",
+  "/.well-known",
+  "/register",
+  "/token",
+  // Note: /authorize is intentionally cookie-gated. The user must be
+  // authenticated to the dashboard before approving an OAuth client.
 ];
 
 export function proxy(req: NextRequest) {
