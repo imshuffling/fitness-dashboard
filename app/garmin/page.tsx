@@ -87,12 +87,16 @@ export default async function GarminDashboardPage() {
   const maxResting = restingValid.length > 0 ? Math.max(...restingValid.map((p) => p.resting as number)) : null;
 
   return (
-    <main className="min-h-screen bg-neutral-950 text-neutral-100 p-6 sm:p-10">
-      <div className="max-w-6xl mx-auto space-y-6">
-        <header className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-semibold">Garmin Health · {dash.date}</h1>
-            <p className="text-neutral-500 text-sm">Cloned from Garmin Connect (unofficial)</p>
+    <main className="min-h-screen bg-neutral-950 text-neutral-100 p-3 sm:p-10">
+      <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
+        <header className="flex flex-wrap items-end justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-semibold truncate">
+              Garmin Health · {dash.date}
+            </h1>
+            <p className="text-neutral-500 text-xs sm:text-sm">
+              Cloned from Garmin Connect (unofficial)
+            </p>
           </div>
           <Link
             href="/"
@@ -104,7 +108,7 @@ export default async function GarminDashboardPage() {
 
         {/* Top row: Readiness + HRV gauges */}
         <section className="grid sm:grid-cols-2 gap-4">
-          <div className="rounded-xl bg-neutral-900 border border-neutral-800 p-5">
+          <div className="rounded-xl bg-neutral-900 border border-neutral-800 p-3 sm:p-5">
             <h3 className="text-sm uppercase tracking-wider text-neutral-500 mb-3">
               Training Readiness
             </h3>
@@ -124,7 +128,7 @@ export default async function GarminDashboardPage() {
             </dl>
           </div>
 
-          <div className="rounded-xl bg-neutral-900 border border-neutral-800 p-5">
+          <div className="rounded-xl bg-neutral-900 border border-neutral-800 p-3 sm:p-5">
             <h3 className="text-sm uppercase tracking-wider text-neutral-500 mb-3">
               HRV Status
             </h3>
@@ -199,7 +203,7 @@ export default async function GarminDashboardPage() {
 
         {/* Body battery + Stress side by side */}
         <section className="grid lg:grid-cols-2 gap-4">
-          <div className="rounded-xl bg-neutral-900 border border-neutral-800 p-5">
+          <div className="rounded-xl bg-neutral-900 border border-neutral-800 p-3 sm:p-5">
             <div className="flex items-baseline justify-between mb-2">
               <h3 className="text-sm uppercase tracking-wider text-neutral-500">Body Battery</h3>
               <span className="text-[11px] text-neutral-500">
@@ -222,7 +226,7 @@ export default async function GarminDashboardPage() {
             />
           </div>
 
-          <div className="rounded-xl bg-neutral-900 border border-neutral-800 p-5">
+          <div className="rounded-xl bg-neutral-900 border border-neutral-800 p-3 sm:p-5">
             <div className="flex items-baseline justify-between mb-2">
               <h3 className="text-sm uppercase tracking-wider text-neutral-500">Stress</h3>
               <span className="text-[11px] text-neutral-500">
@@ -238,7 +242,7 @@ export default async function GarminDashboardPage() {
         </section>
 
         {/* Sleep */}
-        <section className="rounded-xl bg-neutral-900 border border-neutral-800 p-5">
+        <section className="rounded-xl bg-neutral-900 border border-neutral-800 p-3 sm:p-5">
           <div className="flex items-baseline justify-between mb-3">
             <h3 className="text-sm uppercase tracking-wider text-neutral-500">Last night sleep</h3>
             <span className="text-[11px] text-neutral-500">
@@ -257,7 +261,7 @@ export default async function GarminDashboardPage() {
         </section>
 
         {/* Heart rate panel — today intraday + resting HR 14-day trend */}
-        <section className="rounded-xl bg-neutral-900 border border-neutral-800 p-5 space-y-6">
+        <section className="rounded-xl bg-neutral-900 border border-neutral-800 p-3 sm:p-5 space-y-6">
           <div>
             <div className="flex items-baseline justify-between mb-2">
               <h3 className="text-sm uppercase tracking-wider text-neutral-500">

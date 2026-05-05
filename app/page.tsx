@@ -82,16 +82,18 @@ export default async function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-neutral-950 text-neutral-100 p-6 sm:p-10">
-      <div className="max-w-6xl mx-auto space-y-8">
+    <main className="min-h-screen bg-neutral-950 text-neutral-100 p-3 sm:p-10">
+      <div className="max-w-6xl mx-auto space-y-5 sm:space-y-8">
         <header className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-semibold">{summary.athlete.name || "Athlete"}</h1>
-            <p className="text-neutral-500 text-sm">
+          <div className="min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-semibold truncate">
+              {summary.athlete.name || "Athlete"}
+            </h1>
+            <p className="text-neutral-500 text-xs sm:text-sm">
               Last updated {new Date(summary.generatedAt).toLocaleTimeString()}
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             <span
               className={`text-sm font-medium px-3 py-1 rounded-full ${
                 summary.fitnessScore === "improving"
@@ -139,7 +141,7 @@ export default async function Home() {
         </section>
 
         {isIntervalsConfigured() && (
-          <section className="rounded-xl bg-neutral-900 border border-neutral-800 p-5">
+          <section className="rounded-xl bg-neutral-900 border border-neutral-800 p-3 sm:p-5">
             <div className="flex items-baseline justify-between mb-3">
               <h2 className="text-lg font-semibold">Training load (intervals.icu)</h2>
               <p className="text-xs text-neutral-500">CTL · ATL · TSB</p>
@@ -152,7 +154,7 @@ export default async function Home() {
           </section>
         )}
 
-        <section className="rounded-xl bg-neutral-900 border border-neutral-800 p-5">
+        <section className="rounded-xl bg-neutral-900 border border-neutral-800 p-3 sm:p-5">
           <div className="flex items-baseline justify-between mb-3">
             <h2 className="text-lg font-semibold">Garmin wellness · last 7 days</h2>
             {garminLinked ? (
@@ -192,7 +194,7 @@ export default async function Home() {
           )}
         </section>
 
-        <section className="rounded-xl bg-neutral-900 border border-neutral-800 p-5">
+        <section className="rounded-xl bg-neutral-900 border border-neutral-800 p-3 sm:p-5">
           <h2 className="text-lg font-semibold mb-3">Activity calendar</h2>
           <Calendar activities={summary.recentActivities} />
         </section>
