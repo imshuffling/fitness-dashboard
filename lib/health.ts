@@ -1,6 +1,4 @@
-import { promises as fs } from "node:fs";
-import path from "node:path";
-import { redis } from "./kv";
+import { cacheGet, cacheScanDelete, cacheSet } from "./kv";
 import {
   getActivities,
   getActivityStreams,
@@ -9,7 +7,6 @@ import {
 } from "./strava";
 import {
   avgHRAtPower,
-  calcZone2Pct,
   calcZoneDistribution,
   totalSeconds,
   type ZoneSeconds,
@@ -57,78 +54,56 @@ export type HealthSummary = {
 
 const CYCLING_TYPES = new Set(["Ride", "VirtualRide", "EBikeRide", "Velomobile"]);
 
-const CACHE_DIR = ".data/cache";
-
-function cacheFile(key: string): string {
-  return path.join(CACHE_DIR, key.replace(/[^a-zA-Z0-9._-]/g, "_") + ".json");
-}
-
-async function cacheGet<T>(key: string): Promise<T | null> {
-  const r = redis();
-  if (r) return (await r.get<T>(key)) ?? null;
-  // Local file fallback
-  try {
-    const raw = await fs.readFile(cacheFile(key), "utf8");
-    const { value, expiresAt } = JSON.parse(raw) as { value: T; expiresAt: number };
-    if (expiresAt < Date.now()) return null;
-    return value;
-  } catch {
-    return null;
-  }
-}
-
-async function cacheSet<T>(key: string, val: T, ttlSeconds: number): Promise<void> {
-  const r = redis();
-  if (r) {
-    await r.set(key, val, { ex: ttlSeconds });
-    return;
-  }
-  // Local file fallback
-  await fs.mkdir(CACHE_DIR, { recursive: true });
-  await fs.writeFile(
-    cacheFile(key),
-    JSON.stringify({ value: val, expiresAt: Date.now() + ttlSeconds * 1000 }),
-    "utf8"
-  );
-}
-
 export async function clearSummaryCache(): Promise<number> {
   const patterns = ["summary:v1:*", "intervals:load:*", "garmin:week:*", "garmin:dash:*"];
-  const r = redis();
-  if (r) {
-    let deleted = 0;
-    for (const pattern of patterns) {
-      let cursor = "0";
-      do {
-        const res = (await r.scan(cursor, { match: pattern, count: 100 })) as [string, string[]];
-        cursor = res[0];
-        if (res[1].length > 0) {
-          await r.del(...res[1]);
-          deleted += res[1].length;
-        }
-      } while (cursor !== "0");
-    }
-    return deleted;
+  let deleted = 0;
+  for (const pattern of patterns) {
+    deleted += await cacheScanDelete(pattern);
   }
-  // Local file fallback
-  try {
-    const files = await fs.readdir(CACHE_DIR);
-    let deleted = 0;
-    for (const f of files) {
-      if (
-        f.startsWith("summary_v1_") ||
-        f.startsWith("intervals_load_") ||
-        f.startsWith("garmin_week_") ||
-        f.startsWith("garmin_dash_")
-      ) {
-        await fs.unlink(path.join(CACHE_DIR, f));
-        deleted++;
-      }
+  return deleted;
+}
+
+type ActivityEnrichment = { zones: ZoneSeconds | null; avgHR: number | null };
+
+/**
+ * Fetch streams for an activity and derive the zone distribution and the
+ * average HR at the target wattage. Stream-shape (`streams.heartrate?.data`,
+ * length-equality between channels) is hidden inside this function so the
+ * summary loop stays oblivious. Result is cached per-activity for 30 days
+ * since Strava activity data is immutable once uploaded.
+ */
+async function enrichActivity(
+  a: StravaActivity,
+  targetWatts: number
+): Promise<ActivityEnrichment> {
+  const cacheKey = `activity:v1:${a.id}:${targetWatts}`;
+  const cached = await cacheGet<ActivityEnrichment>(cacheKey);
+  if (cached) return cached;
+
+  const isCycling = CYCLING_TYPES.has(a.sport_type ?? a.type);
+  const hasHR = a.has_heartrate || (a.average_heartrate ?? 0) > 0;
+
+  let result: ActivityEnrichment = { zones: null, avgHR: null };
+  if (hasHR) {
+    try {
+      const keys = isCycling ? ["heartrate", "watts", "time"] : ["heartrate", "time"];
+      const streams = await getActivityStreams(a.id, keys);
+      const hr = streams.heartrate?.data ?? [];
+      const time = streams.time?.data ?? [];
+      const watts = streams.watts?.data ?? [];
+      const zones = hr.length && time.length ? calcZoneDistribution(hr, time) : null;
+      const avgHR =
+        isCycling && hr.length && watts.length && hr.length === watts.length
+          ? avgHRAtPower({ hr, watts }, targetWatts)
+          : null;
+      result = { zones, avgHR };
+    } catch {
+      // streams unavailable for this activity — leave nulls
     }
-    return deleted;
-  } catch {
-    return 0;
   }
+
+  await cacheSet(cacheKey, result, 30 * 86400);
+  return result;
 }
 
 function summariseActivity(a: StravaActivity, zones: ZoneSeconds | null): ActivitySummary {
@@ -187,41 +162,8 @@ export async function buildHealthSummary(opts: { days?: number; targetWatts?: nu
   const hrAtPower: HRAtPowerPoint[] = [];
 
   for (const a of activities) {
-    const isCycling = CYCLING_TYPES.has(a.sport_type ?? a.type);
-    const hasHR = a.has_heartrate || (a.average_heartrate ?? 0) > 0;
-
-    // Per-activity cache. Activity data is immutable once uploaded.
-    const actCacheKey = `activity:v1:${a.id}:${targetWatts}`;
-    type ActCache = { zones: ZoneSeconds | null; avgHR: number | null };
-    let zones: ZoneSeconds | null = null;
-    let avgHR: number | null = null;
-    const cachedAct = await cacheGet<ActCache>(actCacheKey);
-    if (cachedAct) {
-      zones = cachedAct.zones;
-      avgHR = cachedAct.avgHR;
-    } else if (hasHR) {
-      try {
-        const keys = isCycling ? ["heartrate", "watts", "time"] : ["heartrate", "time"];
-        const streams = await getActivityStreams(a.id, keys);
-        const hr = streams.heartrate?.data ?? [];
-        const time = streams.time?.data ?? [];
-        const watts = streams.watts?.data ?? [];
-        if (hr.length && time.length) zones = calcZoneDistribution(hr, time);
-        if (isCycling && hr.length && watts.length && hr.length === watts.length) {
-          avgHR = avgHRAtPower({ hr, watts }, targetWatts);
-        }
-        // Cache 30 days — activity data doesn't change.
-        await cacheSet(actCacheKey, { zones, avgHR }, 30 * 86400);
-      } catch {
-        // ignore stream errors per-activity
-      }
-    } else {
-      // Cache the no-HR result too so we don't keep checking.
-      await cacheSet(actCacheKey, { zones: null, avgHR: null }, 30 * 86400);
-    }
-
+    const { zones, avgHR } = await enrichActivity(a, targetWatts);
     summaries.push(summariseActivity(a, zones));
-
     if (avgHR !== null) {
       hrAtPower.push({
         date: a.start_date_local.slice(0, 10),
@@ -278,5 +220,3 @@ export async function calcHRAtPowerTrend(watts: number, days = 90): Promise<HRAt
   return summary.trends.hrAtPower;
 }
 
-// re-export so route handlers can compute zone2 pct when needed
-export { calcZone2Pct };

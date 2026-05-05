@@ -1,5 +1,5 @@
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
-import { requireBearer } from "@/lib/auth";
+import { requireBearer } from "@/lib/oauth";
 import { createMcpServer } from "@/lib/mcp";
 
 export const dynamic = "force-dynamic";

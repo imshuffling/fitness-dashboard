@@ -1,6 +1,4 @@
-import { promises as fs } from "node:fs";
-import path from "node:path";
-import { redis } from "./kv";
+import { createTokenStore } from "./tokenStore";
 
 export type StravaTokens = {
   access_token: string;
@@ -8,51 +6,15 @@ export type StravaTokens = {
   expires_at: number;
 };
 
-const KEY = "strava:tokens";
-const DEV_FILE = path.join(process.cwd(), ".data", "tokens.json");
+const store = createTokenStore<StravaTokens>({ kvKey: "strava:tokens" });
 
-async function readFile(): Promise<StravaTokens | null> {
-  try {
-    const raw = await fs.readFile(DEV_FILE, "utf8");
-    return JSON.parse(raw) as StravaTokens;
-  } catch {
-    return null;
-  }
-}
-
-async function writeFile(t: StravaTokens): Promise<void> {
-  await fs.mkdir(path.dirname(DEV_FILE), { recursive: true });
-  await fs.writeFile(DEV_FILE, JSON.stringify(t, null, 2), "utf8");
-}
-
-export async function loadTokens(): Promise<StravaTokens | null> {
-  const r = redis();
-  if (!r) return readFile();
-  return (await r.get<StravaTokens>(KEY)) ?? null;
-}
-
-export async function saveTokens(t: StravaTokens): Promise<void> {
-  const r = redis();
-  if (!r) {
-    await writeFile(t);
-    return;
-  }
-  await r.set(KEY, t);
-}
-
-export async function clearTokens(): Promise<void> {
-  const r = redis();
-  if (!r) {
-    try {
-      await fs.unlink(DEV_FILE);
-    } catch {}
-    return;
-  }
-  await r.del(KEY);
-}
+export const loadTokens = store.load;
+export const saveTokens = store.save;
+export const clearTokens = store.clear;
+export const isConnected = store.isPresent;
 
 export async function getAccessToken(): Promise<string> {
-  const t = await loadTokens();
+  const t = await store.load();
   if (!t) throw new Error("Not connected to Strava");
   if (t.expires_at * 1000 > Date.now() + 60_000) return t.access_token;
 
@@ -68,14 +30,10 @@ export async function getAccessToken(): Promise<string> {
   });
   if (!res.ok) throw new Error(`Strava refresh failed: ${res.status} ${await res.text()}`);
   const fresh = (await res.json()) as StravaTokens;
-  await saveTokens({
+  await store.save({
     access_token: fresh.access_token,
     refresh_token: fresh.refresh_token,
     expires_at: fresh.expires_at,
   });
   return fresh.access_token;
-}
-
-export async function isConnected(): Promise<boolean> {
-  return (await loadTokens()) !== null;
 }

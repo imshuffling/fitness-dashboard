@@ -1,4 +1,4 @@
-import { requireBearer } from "@/lib/auth";
+import { requireBearer } from "@/lib/oauth";
 import { getGarminWeekSummary } from "@/lib/garmin";
 
 export const runtime = "nodejs";

@@ -1,4 +1,4 @@
-import { requireBearer } from "@/lib/auth";
+import { requireBearer } from "@/lib/oauth";
 import { getActivityStreams } from "@/lib/strava";
 
 export async function GET(req: Request) {

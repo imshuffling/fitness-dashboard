@@ -2,20 +2,9 @@
 // Auth: HTTP Basic with username "API_KEY" and password = the key from
 // https://intervals.icu/settings (API section).
 
-import { redis } from "./kv";
+import { cacheGetOrSet } from "./kv";
 
 const BASE = "https://intervals.icu/api/v1";
-
-async function cached<T>(key: string, ttlSeconds: number, fn: () => Promise<T>): Promise<T> {
-  const r = redis();
-  if (r) {
-    const hit = await r.get<T>(key);
-    if (hit) return hit;
-  }
-  const value = await fn();
-  if (r) await r.set(key, value, { ex: ttlSeconds });
-  return value;
-}
 
 function authHeader(): string {
   const key = process.env.INTERVALS_ICU_API_KEY;
@@ -112,7 +101,7 @@ export async function getIntervalsActivities(opts: {
 export type LoadPoint = { date: string; ctl: number; atl: number; tsb: number };
 
 export async function getTrainingLoadTrend(days = 90): Promise<LoadPoint[]> {
-  return cached(`intervals:load:${days}`, 30 * 60, async () => {
+  return cacheGetOrSet(`intervals:load:${days}`, 30 * 60, async () => {
     const newest = new Date();
     const oldest = new Date(newest.getTime() - days * 86400_000);
     const fmt = (d: Date) => d.toISOString().slice(0, 10);

@@ -46,12 +46,6 @@ export function totalSeconds(zs: ZoneSeconds): number {
   return ZONE_KEYS.reduce((s, k) => s + zs[k], 0);
 }
 
-export function calcZone2Pct(hr: number[], time: number[]): number {
-  const zs = calcZoneDistribution(hr, time);
-  const total = totalSeconds(zs);
-  return total === 0 ? 0 : Math.round((zs.zone2 / total) * 100);
-}
-
 export function avgHRAtPower(
   streams: { hr?: number[]; watts?: number[] },
   target: number,

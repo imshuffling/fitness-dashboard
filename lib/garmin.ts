@@ -1,17 +1,6 @@
 import { GarminConnect } from "garmin-connect";
 import { loadGarminTokens, saveGarminTokens } from "./garminTokens";
-import { redis } from "./kv";
-
-async function cached<T>(key: string, ttlSeconds: number, fn: () => Promise<T>): Promise<T> {
-  const r = redis();
-  if (r) {
-    const hit = await r.get<T>(key);
-    if (hit) return hit;
-  }
-  const value = await fn();
-  if (r) await r.set(key, value, { ex: ttlSeconds });
-  return value;
-}
+import { cacheGetOrSet } from "./kv";
 
 let _client: GarminConnect | null = null;
 
@@ -43,28 +32,28 @@ export async function loginAndSaveGarmin(username: string, password: string): Pr
   _client = client;
 }
 
-export async function getGarminUserProfile() {
+async function getGarminUserProfile() {
   const c = await getClient();
   const profile = await c.getUserProfile();
   await persist(c);
   return profile;
 }
 
-export async function getGarminSteps(date: Date) {
+async function getGarminSteps(date: Date) {
   const c = await getClient();
   const steps = await c.getSteps(date);
   await persist(c);
   return steps;
 }
 
-export async function getGarminSleep(date: Date) {
+async function getGarminSleep(date: Date) {
   const c = await getClient();
   const sleep = await c.getSleepData(date);
   await persist(c);
   return sleep;
 }
 
-export async function getGarminHeartRate(date: Date) {
+async function getGarminHeartRate(date: Date) {
   const c = await getClient();
   const hr = await c.getHeartRate(date);
   await persist(c);
@@ -78,7 +67,7 @@ export type GarminDailySummary = {
   restingHR: number | null;
 };
 
-export async function getGarminDailySummary(date: Date): Promise<GarminDailySummary> {
+async function getGarminDailySummary(date: Date): Promise<GarminDailySummary> {
   const c = await getClient();
   const dateStr = date.toISOString().slice(0, 10);
 
@@ -111,7 +100,7 @@ export async function getGarminDailySummary(date: Date): Promise<GarminDailySumm
 
 export async function getGarminWeekSummary(): Promise<GarminDailySummary[]> {
   const today = new Date();
-  return cached(`garmin:week:${today.toISOString().slice(0, 10)}`, 30 * 60, async () => {
+  return cacheGetOrSet(`garmin:week:${today.toISOString().slice(0, 10)}`, 30 * 60, async () => {
     const dates = Array.from(
       { length: 7 },
       (_, i) => new Date(today.getTime() - (6 - i) * 86400_000)
@@ -144,7 +133,7 @@ async function tryGet<T>(c: GarminConnect, path: string): Promise<T | null> {
 
 const fmtDate = (d: Date) => d.toISOString().slice(0, 10);
 
-export type IntradayPoint = { ts: number; value: number };
+type IntradayPoint = { ts: number; value: number };
 
 function pairsToPoints(arr: unknown): IntradayPoint[] {
   if (!Array.isArray(arr)) return [];
@@ -153,14 +142,14 @@ function pairsToPoints(arr: unknown): IntradayPoint[] {
     .map((p) => ({ ts: p[0] as number, value: p[1] as number }));
 }
 
-export type StressDay = {
+type StressDay = {
   date: string;
   avg: number | null;
   max: number | null;
   intraday: IntradayPoint[];
 };
 
-export async function getGarminStress(date: Date): Promise<StressDay> {
+async function getGarminStress(date: Date): Promise<StressDay> {
   const c = await getClient();
   const dateStr = fmtDate(date);
   const data = await tryGet<{
@@ -177,7 +166,7 @@ export async function getGarminStress(date: Date): Promise<StressDay> {
   };
 }
 
-export type BodyBatteryDay = {
+type BodyBatteryDay = {
   date: string;
   start: number | null;
   end: number | null;
@@ -186,7 +175,7 @@ export type BodyBatteryDay = {
   intraday: IntradayPoint[];
 };
 
-export async function getGarminBodyBattery(date: Date): Promise<BodyBatteryDay> {
+async function getGarminBodyBattery(date: Date): Promise<BodyBatteryDay> {
   const c = await getClient();
   const dateStr = fmtDate(date);
   const data = await tryGet<
@@ -216,7 +205,7 @@ export async function getGarminBodyBattery(date: Date): Promise<BodyBatteryDay> 
   };
 }
 
-export type HRVDay = {
+type HRVDay = {
   date: string;
   lastNightAvg: number | null;
   weeklyAvg: number | null;
@@ -224,7 +213,7 @@ export type HRVDay = {
   baseline: { lowUpper: number | null; balancedLow: number | null; balancedUpper: number | null };
 };
 
-export async function getGarminHRV(date: Date): Promise<HRVDay> {
+async function getGarminHRV(date: Date): Promise<HRVDay> {
   const c = await getClient();
   const dateStr = fmtDate(date);
   const data = await tryGet<{
@@ -255,7 +244,7 @@ export async function getGarminHRV(date: Date): Promise<HRVDay> {
   };
 }
 
-export type ReadinessDay = {
+type ReadinessDay = {
   date: string;
   score: number | null;
   level: string | null;
@@ -263,7 +252,7 @@ export type ReadinessDay = {
   factors: { sleep: number | null; recovery: number | null; hrv: number | null; acuteLoad: number | null };
 };
 
-export async function getGarminReadiness(date: Date): Promise<ReadinessDay> {
+async function getGarminReadiness(date: Date): Promise<ReadinessDay> {
   const c = await getClient();
   const dateStr = fmtDate(date);
   const data = await tryGet<
@@ -293,7 +282,7 @@ export async function getGarminReadiness(date: Date): Promise<ReadinessDay> {
   };
 }
 
-export type DailyFull = {
+type DailyFull = {
   date: string;
   totalSteps: number | null;
   stepGoal: number | null;
@@ -312,7 +301,7 @@ export type DailyFull = {
   maxHeartRate: number | null;
 };
 
-export async function getGarminDailyFull(date: Date): Promise<DailyFull> {
+async function getGarminDailyFull(date: Date): Promise<DailyFull> {
   const c = await getClient();
   const dateStr = fmtDate(date);
   // displayName-less endpoint works for the authenticated user in newer API.
@@ -342,7 +331,7 @@ export async function getGarminDailyFull(date: Date): Promise<DailyFull> {
   };
 }
 
-export type SleepStages = {
+type SleepStages = {
   date: string;
   totalHours: number | null;
   deepHours: number | null;
@@ -354,7 +343,7 @@ export type SleepStages = {
   avgRespiration: number | null;
 };
 
-export async function getGarminSleepStages(date: Date): Promise<SleepStages> {
+async function getGarminSleepStages(date: Date): Promise<SleepStages> {
   const c = await getClient();
   const sleep = await c.getSleepData(date).catch(() => null);
   await persist(c);
@@ -401,7 +390,7 @@ export async function getGarminSleepStages(date: Date): Promise<SleepStages> {
   };
 }
 
-export type HRDay = {
+type HRDay = {
   date: string;
   resting: number | null;
   min: number | null;
@@ -409,7 +398,7 @@ export type HRDay = {
   intraday: IntradayPoint[];
 };
 
-export async function getGarminHRDetail(date: Date): Promise<HRDay> {
+async function getGarminHRDetail(date: Date): Promise<HRDay> {
   const c = await getClient();
   const hr = (await c.getHeartRate(date).catch(() => null)) as
     | {
@@ -435,9 +424,9 @@ export async function getGarminHRDetail(date: Date): Promise<HRDay> {
   };
 }
 
-export type RestingHRPoint = { date: string; resting: number | null; min: number | null; max: number | null };
+type RestingHRPoint = { date: string; resting: number | null; min: number | null; max: number | null };
 
-export async function getGarminRestingHRTrend(days = 14): Promise<RestingHRPoint[]> {
+async function getGarminRestingHRTrend(days = 14): Promise<RestingHRPoint[]> {
   const today = new Date();
   const dates = Array.from(
     { length: days },
@@ -456,6 +445,13 @@ export async function getGarminRestingHRTrend(days = 14): Promise<RestingHRPoint
   );
 }
 
+export type RestingHRStats = {
+  trend: RestingHRPoint[];
+  avg: number | null;
+  min: number | null;
+  max: number | null;
+};
+
 export type GarminDashboard = {
   date: string;
   daily: DailyFull;
@@ -466,10 +462,25 @@ export type GarminDashboard = {
   hrv: HRVDay;
   readiness: ReadinessDay;
   restingHRTrend: RestingHRPoint[];
+  restingHRStats: RestingHRStats;
 };
 
+function aggregateRestingHR(trend: RestingHRPoint[]): RestingHRStats {
+  const valid = trend.filter((p) => p.resting !== null);
+  if (valid.length === 0) {
+    return { trend, avg: null, min: null, max: null };
+  }
+  const values = valid.map((p) => p.resting as number);
+  return {
+    trend,
+    avg: Math.round(values.reduce((s, v) => s + v, 0) / values.length),
+    min: Math.min(...values),
+    max: Math.max(...values),
+  };
+}
+
 export async function getGarminDashboard(date: Date = new Date()): Promise<GarminDashboard> {
-  return cached(`garmin:dash:${fmtDate(date)}`, 10 * 60, () => buildGarminDashboard(date));
+  return cacheGetOrSet(`garmin:dash:${fmtDate(date)}`, 10 * 60, () => buildGarminDashboard(date));
 }
 
 async function buildGarminDashboard(date: Date): Promise<GarminDashboard> {
@@ -493,5 +504,6 @@ async function buildGarminDashboard(date: Date): Promise<GarminDashboard> {
     hrv,
     readiness,
     restingHRTrend,
+    restingHRStats: aggregateRestingHR(restingHRTrend),
   };
 }

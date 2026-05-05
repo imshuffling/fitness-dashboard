@@ -74,17 +74,17 @@ export default async function GarminDashboardPage() {
     );
   }
 
-  const { daily, sleep, stress, bodyBattery, hr, hrv, readiness, restingHRTrend } = dash;
-
-  const restingValid = restingHRTrend.filter((p) => p.resting !== null);
-  const avgResting =
-    restingValid.length > 0
-      ? Math.round(
-          restingValid.reduce((s, p) => s + (p.resting as number), 0) / restingValid.length
-        )
-      : null;
-  const minResting = restingValid.length > 0 ? Math.min(...restingValid.map((p) => p.resting as number)) : null;
-  const maxResting = restingValid.length > 0 ? Math.max(...restingValid.map((p) => p.resting as number)) : null;
+  const {
+    daily,
+    sleep,
+    stress,
+    bodyBattery,
+    hr,
+    hrv,
+    readiness,
+    restingHRTrend,
+    restingHRStats,
+  } = dash;
 
   return (
     <main className="min-h-screen bg-neutral-950 text-neutral-100 p-3 sm:p-10">
@@ -290,8 +290,8 @@ export default async function GarminDashboardPage() {
                 Resting HR · 14 days
               </h3>
               <span className="text-[11px] text-neutral-500">
-                {avgResting !== null && minResting !== null && maxResting !== null
-                  ? `avg ${avgResting} · range ${minResting}–${maxResting}`
+                {restingHRStats.avg !== null
+                  ? `avg ${restingHRStats.avg} · range ${restingHRStats.min}–${restingHRStats.max}`
                   : ""}
               </span>
             </div>

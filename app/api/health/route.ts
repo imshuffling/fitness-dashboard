@@ -1,4 +1,4 @@
-import { requireBearer } from "@/lib/auth";
+import { requireBearer } from "@/lib/oauth";
 import { buildHealthSummary } from "@/lib/health";
 
 export async function GET(req: Request) {
