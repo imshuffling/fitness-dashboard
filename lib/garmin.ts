@@ -3,6 +3,7 @@ import { loadGarminTokens, saveGarminTokens } from "./garminTokens";
 import { cacheGetOrSet } from "./kv";
 
 let _client: GarminConnect | null = null;
+let _displayName: string | null = null;
 
 async function getClient(): Promise<GarminConnect> {
   if (_client) return _client;
@@ -12,6 +13,21 @@ async function getClient(): Promise<GarminConnect> {
   client.loadToken(tokens.oauth1, tokens.oauth2);
   _client = client;
   return client;
+}
+
+/**
+ * Many Garmin endpoints accept the user's displayName in the path. Cache it
+ * once per cold start to avoid an extra round-trip per call.
+ */
+async function displayName(c: GarminConnect): Promise<string | null> {
+  if (_displayName) return _displayName;
+  try {
+    const profile = (await c.getUserProfile()) as { displayName?: string };
+    _displayName = profile?.displayName ?? null;
+  } catch {
+    _displayName = null;
+  }
+  return _displayName;
 }
 
 /** Persist any token refresh that happened during use. */
@@ -304,11 +320,14 @@ type DailyFull = {
 async function getGarminDailyFull(date: Date): Promise<DailyFull> {
   const c = await getClient();
   const dateStr = fmtDate(date);
-  // displayName-less endpoint works for the authenticated user in newer API.
-  const data = await tryGet<Record<string, unknown>>(
-    c,
-    `/usersummary-service/usersummary/daily?calendarDate=${dateStr}`
-  );
+  const name = await displayName(c);
+
+  // Try displayName-scoped path first (current Garmin API), fall back to the
+  // older path-less form if the profile lookup failed.
+  const path = name
+    ? `/usersummary-service/usersummary/daily/${name}?calendarDate=${dateStr}`
+    : `/usersummary-service/usersummary/daily?calendarDate=${dateStr}`;
+  const data = await tryGet<Record<string, unknown>>(c, path);
   await persist(c);
   const get = <T>(k: string): T | null => (data?.[k] as T | undefined) ?? null;
   return {
