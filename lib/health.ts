@@ -1,6 +1,6 @@
-import { Redis } from "@upstash/redis";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { redis } from "./kv";
 import {
   getActivities,
   getActivityStreams,
@@ -56,17 +56,6 @@ export type HealthSummary = {
 };
 
 const CYCLING_TYPES = new Set(["Ride", "VirtualRide", "EBikeRide", "Velomobile"]);
-
-let _redis: Redis | null = null;
-function redis(): Redis | null {
-  if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) return null;
-  if (_redis) return _redis;
-  _redis = new Redis({
-    url: process.env.KV_REST_API_URL,
-    token: process.env.KV_REST_API_TOKEN,
-  });
-  return _redis;
-}
 
 const CACHE_DIR = ".data/cache";
 

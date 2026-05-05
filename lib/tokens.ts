@@ -1,6 +1,6 @@
-import { Redis } from "@upstash/redis";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { redis } from "./kv";
 
 export type StravaTokens = {
   access_token: string;
@@ -10,20 +10,6 @@ export type StravaTokens = {
 
 const KEY = "strava:tokens";
 const DEV_FILE = path.join(process.cwd(), ".data", "tokens.json");
-
-function useFileFallback(): boolean {
-  return process.env.NODE_ENV === "development" && !process.env.KV_REST_API_URL;
-}
-
-let _redis: Redis | null = null;
-function redis(): Redis {
-  if (_redis) return _redis;
-  _redis = new Redis({
-    url: process.env.KV_REST_API_URL!,
-    token: process.env.KV_REST_API_TOKEN!,
-  });
-  return _redis;
-}
 
 async function readFile(): Promise<StravaTokens | null> {
   try {
@@ -40,26 +26,29 @@ async function writeFile(t: StravaTokens): Promise<void> {
 }
 
 export async function loadTokens(): Promise<StravaTokens | null> {
-  if (useFileFallback()) return readFile();
-  return (await redis().get<StravaTokens>(KEY)) ?? null;
+  const r = redis();
+  if (!r) return readFile();
+  return (await r.get<StravaTokens>(KEY)) ?? null;
 }
 
 export async function saveTokens(t: StravaTokens): Promise<void> {
-  if (useFileFallback()) {
+  const r = redis();
+  if (!r) {
     await writeFile(t);
     return;
   }
-  await redis().set(KEY, t);
+  await r.set(KEY, t);
 }
 
 export async function clearTokens(): Promise<void> {
-  if (useFileFallback()) {
+  const r = redis();
+  if (!r) {
     try {
       await fs.unlink(DEV_FILE);
     } catch {}
     return;
   }
-  await redis().del(KEY);
+  await r.del(KEY);
 }
 
 export async function getAccessToken(): Promise<string> {

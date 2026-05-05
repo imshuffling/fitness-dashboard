@@ -1,22 +1,11 @@
-import { Redis } from "@upstash/redis";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { IGarminTokens } from "garmin-connect/dist/garmin/types";
+import { redis } from "./kv";
 
 const KEY = "garmin:tokens";
 const FALLBACK_DIR = ".data";
 const FALLBACK_FILE = path.join(FALLBACK_DIR, "garmin-tokens.json");
-
-let _redis: Redis | null = null;
-function redis(): Redis | null {
-  if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) return null;
-  if (_redis) return _redis;
-  _redis = new Redis({
-    url: process.env.KV_REST_API_URL,
-    token: process.env.KV_REST_API_TOKEN,
-  });
-  return _redis;
-}
 
 async function readFallback(): Promise<IGarminTokens | null> {
   try {
