@@ -1,13 +1,13 @@
 export type ZoneKey = "zone1" | "zone2" | "zone3" | "zone4" | "zone5";
 
-// Bands based on Garmin %Max HR with Max HR = 185 bpm.
-// Z1 50-59% · Z2 60-69% · Z3 70-79% · Z4 80-89% · Z5 90-100%
+// Bands per HR Zone Calculator with Max HR = 185 bpm.
+// Z1 93-111 · Z2 111-130 · Z3 130-148 · Z4 148-167 · Z5 167-185
 export const ZONES: Record<ZoneKey, [number, number]> = {
   zone1: [0, 110],
-  zone2: [111, 128],
-  zone3: [129, 146],
-  zone4: [147, 165],
-  zone5: [166, 999],
+  zone2: [111, 129],
+  zone3: [130, 147],
+  zone4: [148, 166],
+  zone5: [167, 999],
 };
 
 const ZONE_KEYS: ZoneKey[] = ["zone1", "zone2", "zone3", "zone4", "zone5"];
