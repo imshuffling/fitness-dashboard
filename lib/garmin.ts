@@ -139,11 +139,14 @@ export async function getGarminWeekSummary(): Promise<GarminDailySummary[]> {
 /* Extended Garmin endpoints (unofficial — defensive, returns null on error). */
 /* -------------------------------------------------------------------------- */
 
+const GARMIN_API_BASE = "https://connectapi.garmin.com";
+
 async function tryGet<T>(c: GarminConnect, path: string): Promise<T | null> {
+  const url = path.startsWith("http") ? path : `${GARMIN_API_BASE}${path}`;
   try {
-    return (await c.get<T>(path)) ?? null;
+    return (await c.get<T>(url)) ?? null;
   } catch (e) {
-    console.warn(`[garmin] GET ${path} failed:`, (e as Error).message);
+    console.warn(`[garmin] GET ${url} failed:`, (e as Error).message);
     return null;
   }
 }

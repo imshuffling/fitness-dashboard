@@ -33,15 +33,16 @@ export async function GET(req: Request) {
     return Response.json({ error: `profile failed: ${(e as Error).message}` }, { status: 500 });
   }
 
+  const base = "https://connectapi.garmin.com";
   const paths: Record<string, string> = {
     daily: displayName
-      ? `/usersummary-service/usersummary/daily/${displayName}?calendarDate=${date}`
-      : `/usersummary-service/usersummary/daily?calendarDate=${date}`,
-    stress: `/wellness-service/wellness/dailyStress/${date}`,
-    bodyBattery: `/wellness-service/wellness/bodyBattery/reports/daily?startDate=${date}&endDate=${date}`,
-    hrv: `/hrv-service/hrv/${date}`,
-    readiness: `/metrics-service/metrics/trainingreadiness/${date}`,
-    pulseOx: `/wellness-service/wellness/pulseOx/${date}`,
+      ? `${base}/usersummary-service/usersummary/daily/${displayName}?calendarDate=${date}`
+      : `${base}/usersummary-service/usersummary/daily?calendarDate=${date}`,
+    stress: `${base}/wellness-service/wellness/dailyStress/${date}`,
+    bodyBattery: `${base}/wellness-service/wellness/bodyBattery/reports/daily?startDate=${date}&endDate=${date}`,
+    hrv: `${base}/hrv-service/hrv/${date}`,
+    readiness: `${base}/metrics-service/metrics/trainingreadiness/${date}`,
+    pulseOx: `${base}/wellness-service/wellness/pulseOx/${date}`,
   };
 
   type Result = { ok: boolean; status?: number; sample?: unknown; error?: string };
