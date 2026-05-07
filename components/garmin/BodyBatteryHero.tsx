@@ -79,14 +79,21 @@ export default function BodyBatteryHero({
             </linearGradient>
           </defs>
           <path d={areaPath} fill="url(#bbGrad)" />
-          <path d={path} stroke="#fafafa" strokeWidth="2" fill="none" />
-          {highest !== null && (
-            <text x={peakX} y={Math.max(14, peakY - 8)} textAnchor="middle" fontSize="14" fill="#fafafa" fontWeight="600">
-              {highest}
-            </text>
-          )}
-          <circle cx={lastX} cy={lastY} r="5" fill="#fafafa" />
+          <path d={path} stroke="#fafafa" strokeWidth="2" fill="none" vectorEffect="non-scaling-stroke" />
+          <circle cx={lastX} cy={lastY} r="5" fill="#fafafa" vectorEffect="non-scaling-stroke" />
         </svg>
+        {highest !== null && (
+          <span
+            className="pointer-events-none absolute -translate-x-1/2 -translate-y-full text-sm font-semibold tabular-nums text-neutral-50"
+            style={{
+              left: `${(peakX / w) * 100}%`,
+              top: `${(peakY / h) * 100}%`,
+              marginTop: -6,
+            }}
+          >
+            {highest}
+          </span>
+        )}
       </div>
     </div>
   );
