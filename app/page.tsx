@@ -3,13 +3,34 @@ import Calendar from "@/components/Calendar";
 import StatCard from "@/components/StatCard";
 import TrainingLoadChart from "@/components/TrainingLoadChart";
 import WellnessStrip from "@/components/WellnessStrip";
+import Gauge from "@/components/garmin/Gauge";
+import SleepStagesBar from "@/components/garmin/SleepStagesBar";
 import { buildHealthSummary } from "@/lib/health";
-import { getGarminWeekSummary, type GarminDailySummary } from "@/lib/garmin";
+import {
+  getGarminDashboard,
+  getGarminWeekSummary,
+  type GarminDailySummary,
+  type GarminDashboard,
+} from "@/lib/garmin";
 import { isGarminConnected } from "@/lib/garminTokens";
 import { getTrainingLoadTrend, isIntervalsConfigured, type LoadPoint } from "@/lib/intervals";
 import { isConnected } from "@/lib/tokens";
 
 export const dynamic = "force-dynamic";
+
+function hrvColor(status: string | null): string {
+  switch (status) {
+    case "BALANCED":
+      return "#22c55e";
+    case "UNBALANCED":
+      return "#eab308";
+    case "LOW":
+    case "POOR":
+      return "#ef4444";
+    default:
+      return "#737373";
+  }
+}
 
 export default async function Home() {
   if (!(await isConnected())) {
@@ -35,6 +56,7 @@ export default async function Home() {
   let trainingLoad: LoadPoint[] = [];
   let intervalsError: string | null = null;
   let garminWeek: GarminDailySummary[] = [];
+  let garminDash: GarminDashboard | null = null;
   let garminLinked = false;
   let garminError: string | null = null;
 
@@ -58,14 +80,16 @@ export default async function Home() {
   }
 
   garminLinked = await isGarminConnected();
-  const [intervalsRes, garminRes] = await Promise.allSettled([
+  const [intervalsRes, garminRes, garminDashRes] = await Promise.allSettled([
     isIntervalsConfigured() ? getTrainingLoadTrend(90) : Promise.resolve([] as LoadPoint[]),
     garminLinked ? getGarminWeekSummary() : Promise.resolve([] as GarminDailySummary[]),
+    garminLinked ? getGarminDashboard() : Promise.resolve(null as GarminDashboard | null),
   ]);
   if (intervalsRes.status === "fulfilled") trainingLoad = intervalsRes.value;
   else intervalsError = (intervalsRes.reason as Error).message;
   if (garminRes.status === "fulfilled") garminWeek = garminRes.value;
   else garminError = (garminRes.reason as Error).message;
+  if (garminDashRes.status === "fulfilled") garminDash = garminDashRes.value;
 
   const trendLabel: Record<string, string> = {
     improving: "↓ Improving",
@@ -188,6 +212,77 @@ export default async function Home() {
             <WellnessStrip days={garminWeek} />
           )}
         </section>
+
+        {garminLinked && garminDash && (
+          <section className="grid lg:grid-cols-2 gap-4">
+            <div className="rounded-xl bg-neutral-900 border border-neutral-800 p-3 sm:p-5">
+              <div className="flex items-baseline justify-between mb-3">
+                <h2 className="text-base sm:text-lg font-semibold">Last night sleep</h2>
+                <span className="text-[11px] text-neutral-500">
+                  {garminDash.sleep.sleepScore !== null
+                    ? `score ${garminDash.sleep.sleepScore}`
+                    : ""}
+                </span>
+              </div>
+              <div className="flex items-baseline gap-2 mb-4">
+                <span className="text-3xl font-semibold">
+                  {garminDash.sleep.totalHours !== null
+                    ? `${garminDash.sleep.totalHours}h`
+                    : "—"}
+                </span>
+                {garminDash.sleep.avgSleepHR !== null && (
+                  <span className="text-sm text-neutral-500">
+                    avg HR {garminDash.sleep.avgSleepHR}bpm
+                  </span>
+                )}
+              </div>
+              <SleepStagesBar stages={garminDash.sleep} />
+            </div>
+
+            <div className="rounded-xl bg-neutral-900 border border-neutral-800 p-3 sm:p-5">
+              <div className="flex items-baseline justify-between mb-3">
+                <h2 className="text-base sm:text-lg font-semibold">HRV status</h2>
+                <span className="text-[11px] text-neutral-500">
+                  {garminDash.hrv.weeklyAvg !== null
+                    ? `wk avg ${garminDash.hrv.weeklyAvg} ms`
+                    : ""}
+                </span>
+              </div>
+              <Gauge
+                value={garminDash.hrv.lastNightAvg}
+                max={Math.max(120, (garminDash.hrv.baseline.balancedUpper ?? 80) + 20)}
+                label={garminDash.hrv.status ?? "—"}
+                color={hrvColor(garminDash.hrv.status)}
+              />
+              <dl className="mt-3 grid grid-cols-2 gap-2 text-[11px] text-neutral-400">
+                <div>
+                  Last night ·{" "}
+                  <span className="text-neutral-200">
+                    {garminDash.hrv.lastNightAvg ?? "—"} ms
+                  </span>
+                </div>
+                <div>
+                  Weekly avg ·{" "}
+                  <span className="text-neutral-200">
+                    {garminDash.hrv.weeklyAvg ?? "—"} ms
+                  </span>
+                </div>
+                <div>
+                  Balanced low ·{" "}
+                  <span className="text-neutral-200">
+                    {garminDash.hrv.baseline.balancedLow ?? "—"}
+                  </span>
+                </div>
+                <div>
+                  Balanced high ·{" "}
+                  <span className="text-neutral-200">
+                    {garminDash.hrv.baseline.balancedUpper ?? "—"}
+                  </span>
+                </div>
+              </dl>
+            </div>
+          </section>
+        )}
 
         <section className="rounded-xl bg-neutral-900 border border-neutral-800 p-3 sm:p-5">
           <h2 className="text-lg font-semibold mb-3">Activity calendar</h2>
