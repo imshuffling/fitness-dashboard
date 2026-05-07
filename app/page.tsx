@@ -167,31 +167,19 @@ export default async function Home() {
             <section className="space-y-3">
               <h2 className="text-2xl font-semibold px-1">At a Glance</h2>
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                <Card
-                  title="Sleep Score"
-                  icon={<SleepIcon />}
-                  meta={
-                    garminDash.sleep.totalHours !== null
-                      ? `${Math.floor(garminDash.sleep.totalHours)}h ${Math.round(
-                          (garminDash.sleep.totalHours % 1) * 60
-                        )}m`
-                      : undefined
-                  }
-                  className="flex flex-col"
-                >
+                <Card title="Sleep Score" icon={<SleepIcon />} className="flex flex-col">
                   <div className="flex items-baseline gap-3 mb-3">
                     <span className="text-4xl font-semibold tabular-nums">
                       {garminDash.sleep.sleepScore ?? "—"}
                     </span>
-                    <span className="text-xs text-neutral-500">
-                      {garminDash.sleep.totalHours !== null
-                        ? `${Math.floor(garminDash.sleep.totalHours)}h ${Math.round(
-                            (garminDash.sleep.totalHours % 1) * 60
-                          )}m Duration`
-                        : "Duration"}
-                    </span>
+                    {garminDash.sleep.totalHours !== null && (
+                      <span className="text-xs text-neutral-500">
+                        {Math.floor(garminDash.sleep.totalHours)}h{" "}
+                        {Math.round((garminDash.sleep.totalHours % 1) * 60)}m Duration
+                      </span>
+                    )}
                   </div>
-                  <div className="flex-1 flex flex-col justify-end">
+                  <div className="flex-1 min-h-0">
                     <SleepStagesChart
                       intraday={garminDash.sleep.intraday}
                       startTs={garminDash.sleep.startTs}
