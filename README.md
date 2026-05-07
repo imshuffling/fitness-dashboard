@@ -23,10 +23,10 @@ Next.js 16 (App Router) · React 19 · Tailwind v4 · `@upstash/redis` ·
 ```bash
 git clone <your-fork>
 cd fitness-dashboard
-npm install
+pnpm install
 cp .env.example .env.local
 # at minimum set DASHBOARD_PASSWORD
-npm run dev
+pnpm dev
 ```
 
 Open <http://localhost:3000>, log in with `DASHBOARD_PASSWORD`, then
