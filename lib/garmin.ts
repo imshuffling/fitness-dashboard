@@ -198,29 +198,33 @@ type BodyBatteryDay = {
 async function getGarminBodyBattery(date: Date): Promise<BodyBatteryDay> {
   const c = await getClient();
   const dateStr = fmtDate(date);
-  const data = await tryGet<
-    Array<{
-      bodyBatteryValuesArray?: [number, string, number, number][];
-      charged?: number;
-      drained?: number;
-    }>
-  >(c, `/wellness-service/wellness/bodyBattery/reports/daily?startDate=${dateStr}&endDate=${dateStr}`);
+  const data = await tryGet<{
+    bodyBatteryValuesArray?: Array<[number, string | null, number | null, number | null]>;
+    bodyBatteryValueDescriptorsDTOList?: Array<{ bodyBatteryValueDescriptorIndex: number; bodyBatteryValueDescriptorKey: string }>;
+  }>(c, `/wellness-service/wellness/dailyStress/${dateStr}`);
   await persist(c);
 
-  const day = Array.isArray(data) ? data[0] : null;
-  const points: IntradayPoint[] = Array.isArray(day?.bodyBatteryValuesArray)
-    ? day!.bodyBatteryValuesArray
-        .filter((row) => Array.isArray(row) && typeof row[2] === "number")
-        .map((row) => ({ ts: row[0] as number, value: row[2] as number }))
-    : [];
-  const values = points.map((p) => p.value);
+  const descriptors = data?.bodyBatteryValueDescriptorsDTOList ?? [];
+  const levelIdx = descriptors.find((d) => d.bodyBatteryValueDescriptorKey === "bodyBatteryLevel")?.bodyBatteryValueDescriptorIndex ?? 2;
+
+  const rows = Array.isArray(data?.bodyBatteryValuesArray) ? data.bodyBatteryValuesArray : [];
+  const points: IntradayPoint[] = rows
+    .filter((row) => Array.isArray(row) && typeof row[0] === "number" && typeof row[levelIdx] === "number")
+    .map((row) => ({ ts: row[0] as number, value: row[levelIdx] as number }));
+
+  const charged = points.length
+    ? points.reduce((sum, p, i) => (i === 0 ? 0 : sum + Math.max(0, p.value - points[i - 1].value)), 0)
+    : null;
+  const drained = points.length
+    ? points.reduce((sum, p, i) => (i === 0 ? 0 : sum + Math.max(0, points[i - 1].value - p.value)), 0)
+    : null;
 
   return {
     date: dateStr,
     start: points[0]?.value ?? null,
     end: points[points.length - 1]?.value ?? null,
-    charged: day?.charged ?? null,
-    drained: day?.drained ?? null,
+    charged,
+    drained,
     intraday: points,
   };
 }
@@ -319,6 +323,11 @@ export type DailyFull = {
   restingHeartRate: number | null;
   minHeartRate: number | null;
   maxHeartRate: number | null;
+  averageSpo2: number | null;
+  lowestSpo2: number | null;
+  latestSpo2: number | null;
+  bodyBatteryChargedValue: number | null;
+  bodyBatteryDrainedValue: number | null;
 };
 
 async function getGarminDailyFull(date: Date): Promise<DailyFull> {
@@ -351,6 +360,11 @@ async function getGarminDailyFull(date: Date): Promise<DailyFull> {
     restingHeartRate: get<number>("restingHeartRate"),
     minHeartRate: get<number>("minHeartRate"),
     maxHeartRate: get<number>("maxHeartRate"),
+    averageSpo2: get<number>("averageSpo2"),
+    lowestSpo2: get<number>("lowestSpo2"),
+    latestSpo2: get<number>("latestSpo2"),
+    bodyBatteryChargedValue: get<number>("bodyBatteryChargedValue"),
+    bodyBatteryDrainedValue: get<number>("bodyBatteryDrainedValue"),
   };
 }
 
@@ -510,21 +524,12 @@ export type PulseOxDay = {
   latest: number | null;
 };
 
-async function getGarminPulseOx(date: Date): Promise<PulseOxDay> {
-  const c = await getClient();
-  const dateStr = fmtDate(date);
-  const data = await tryGet<{
-    averageSpO2?: number;
-    lowestSpO2?: number;
-    latestSpO2?: number;
-    spo2HourlyAverages?: Array<[number, number]>;
-  }>(c, `/wellness-service/wellness/pulseOx/${dateStr}`);
-  await persist(c);
+function pulseOxFromDaily(daily: DailyFull): PulseOxDay {
   return {
-    date: dateStr,
-    avg: data?.averageSpO2 ?? null,
-    lowest: data?.lowestSpO2 ?? null,
-    latest: data?.latestSpO2 ?? null,
+    date: daily.date,
+    avg: daily.averageSpo2,
+    lowest: daily.lowestSpo2,
+    latest: daily.latestSpo2,
   };
 }
 
@@ -652,11 +657,9 @@ async function buildGarminDashboard(date: Date): Promise<GarminDashboard> {
     hrvToday,
     readiness,
     restingHRTrend,
-    pulseOxToday,
     hrvHistory,
     weekDaily,
     weekSleep,
-    weekPulseOx,
   ] = await Promise.all([
     getGarminDailyFull(date),
     getGarminSleepStages(date),
@@ -666,18 +669,15 @@ async function buildGarminDashboard(date: Date): Promise<GarminDashboard> {
     getGarminHRV(date),
     getGarminReadiness(date),
     getGarminRestingHRTrend(14),
-    getGarminPulseOx(date),
     getGarminHRVHistory(28),
     Promise.all(weekDates.map((d) => getGarminDailyFull(d))),
     Promise.all(weekDates.map((d) => getGarminSleepStages(d))),
-    Promise.all(weekDates.map((d) => getGarminPulseOx(d))),
   ]);
 
   const dailyEmpty = dailyToday.totalSteps === null && dailyToday.restingHeartRate === null;
   const sleepEmpty = sleepToday.totalHours === null;
   const stressEmpty = stressToday.avg === null;
   const bodyBatteryEmpty = bodyBatteryToday.intraday.length === 0;
-  const pulseOxEmpty = pulseOxToday.avg === null;
   const hrvEmpty = hrvToday.lastNightAvg === null && hrvToday.weeklyAvg === null;
 
   const [
@@ -685,23 +685,26 @@ async function buildGarminDashboard(date: Date): Promise<GarminDashboard> {
     sleepFallback,
     stressFallback,
     bodyBatteryFallback,
-    pulseOxFallback,
     hrvFallback,
   ] = await Promise.all([
     dailyEmpty ? getGarminDailyFull(yesterday) : Promise.resolve(dailyToday),
     sleepEmpty ? getGarminSleepStages(yesterday) : Promise.resolve(sleepToday),
     stressEmpty ? getGarminStress(yesterday) : Promise.resolve(stressToday),
     bodyBatteryEmpty ? getGarminBodyBattery(yesterday) : Promise.resolve(bodyBatteryToday),
-    pulseOxEmpty ? getGarminPulseOx(yesterday) : Promise.resolve(pulseOxToday),
     hrvEmpty ? getGarminHRV(yesterday) : Promise.resolve(hrvToday),
   ]);
 
   const daily = dailyFallback;
   const sleep = sleepFallback;
   const stress = stressFallback;
-  const bodyBattery = bodyBatteryFallback;
-  const pulseOx = pulseOxFallback;
+  const bodyBattery: BodyBatteryDay = {
+    ...bodyBatteryFallback,
+    charged: daily.bodyBatteryChargedValue ?? bodyBatteryFallback.charged,
+    drained: daily.bodyBatteryDrainedValue ?? bodyBatteryFallback.drained,
+  };
+  const pulseOx = pulseOxFromDaily(daily);
   const hrv = hrvFallback;
+  const weekPulseOx = weekDaily.map(pulseOxFromDaily);
   return {
     date: fmtDate(date),
     daily,

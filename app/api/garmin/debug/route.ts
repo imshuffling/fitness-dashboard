@@ -42,7 +42,6 @@ export async function GET(req: Request) {
     bodyBattery: `${base}/wellness-service/wellness/bodyBattery/reports/daily?startDate=${date}&endDate=${date}`,
     hrv: `${base}/hrv-service/hrv/${date}`,
     readiness: `${base}/metrics-service/metrics/trainingreadiness/${date}`,
-    pulseOx: `${base}/wellness-service/wellness/pulseOx/${date}`,
   };
 
   type Result = { ok: boolean; status?: number; sample?: unknown; error?: string };

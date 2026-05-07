@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Calendar from "@/components/Calendar";
+import HeaderMenu from "@/components/HeaderMenu";
 import TrainingLoadChart from "@/components/TrainingLoadChart";
 import BodyBatteryHero from "@/components/garmin/BodyBatteryHero";
 import Card from "@/components/garmin/Card";
@@ -121,30 +122,7 @@ export default async function Home() {
               Updated {new Date(summary.generatedAt).toLocaleTimeString()}
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/garmin"
-              className="text-xs text-neutral-400 hover:text-neutral-200 px-2 py-1"
-            >
-              Detail
-            </Link>
-            <form action="/api/cache/clear" method="POST">
-              <button
-                type="submit"
-                className="text-xs text-neutral-400 hover:text-neutral-200 px-2 py-1"
-              >
-                Refresh
-              </button>
-            </form>
-            <form action="/api/logout" method="POST">
-              <button
-                type="submit"
-                className="text-xs text-neutral-500 hover:text-neutral-300 px-2 py-1"
-              >
-                Sign out
-              </button>
-            </form>
-          </div>
+          <HeaderMenu />
         </header>
 
         {garminLinked && garminDash && (
@@ -217,9 +195,13 @@ export default async function Home() {
 
                 <Card title="Floors" icon={<FloorsIcon />}>
                   <ZonedGauge
-                    value={garminDash.daily.floorsAscended}
+                    value={
+                      garminDash.daily.floorsAscended !== null
+                        ? Math.round(garminDash.daily.floorsAscended)
+                        : null
+                    }
                     min={0}
-                    max={Math.max(20, (garminDash.daily.floorsAscended ?? 0) + 5)}
+                    max={Math.max(20, Math.round(garminDash.daily.floorsAscended ?? 0) + 5)}
                     zones={[
                       { from: 0, color: "#262626" },
                       { from: 1, color: "#22d3ee" },

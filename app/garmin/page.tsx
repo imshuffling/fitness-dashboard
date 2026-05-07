@@ -9,6 +9,29 @@ import { isGarminConnected } from "@/lib/garminTokens";
 
 export const dynamic = "force-dynamic";
 
+const FEEDBACK_PHRASES: Record<string, string> = {
+  HIGH_RT_HIGHEST_SS_AVAILABLE_ACWR_POS: "Excellent recovery — high readiness, strong sleep, positive load trend.",
+  HIGH_RT_HIGH_SS_AVAILABLE_ACWR_POS: "High readiness — good sleep and a healthy load trend.",
+  HIGH_RT_HIGH_SS_AVAILABLE: "High readiness — sleep and recovery look good.",
+  MODERATE_RT_AVAILABLE_LOW_SLEEP: "Moderate readiness — sleep was light. Take it easy or recover.",
+  MODERATE_RT_AVAILABLE_LOW_HRV: "Moderate readiness — HRV trending low.",
+  LOW_RT_AVAILABLE_LOW_SLEEP: "Low readiness — poor sleep. Prioritize rest today.",
+  LOW_RT_AVAILABLE_LOW_HRV: "Low readiness — HRV is low. Prioritize recovery.",
+  EXCELLENT_RECOVERY: "Excellent recovery",
+  GOOD_RECOVERY: "Good recovery",
+  MODERATE_RECOVERY: "Moderate recovery",
+  POOR_RECOVERY: "Poor recovery",
+};
+
+function formatReadinessFeedback(code: string): string {
+  if (FEEDBACK_PHRASES[code]) return FEEDBACK_PHRASES[code];
+  // Strip leading qualifiers (HIGH_/MODERATE_/LOW_) + suffix tags, lowercase rest.
+  return code
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 function readinessColor(level: string | null): string {
   switch (level) {
     case "HIGH":
@@ -100,9 +123,18 @@ export default async function GarminDashboardPage() {
           </div>
           <Link
             href="/"
-            className="text-xs text-orange-400 hover:text-orange-300"
+            className="inline-flex items-center gap-1.5 rounded-full border border-neutral-800 bg-neutral-900/60 px-3 py-1.5 text-xs text-neutral-300 hover:bg-neutral-800 hover:text-neutral-100 transition"
           >
-            ← back to fitness dashboard
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+              <path
+                d="M7.5 2.5 4 6l3.5 3.5"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            Dashboard
           </Link>
         </header>
 
@@ -118,7 +150,9 @@ export default async function GarminDashboardPage() {
               color={readinessColor(readiness.level)}
             />
             {readiness.feedbackLong && (
-              <p className="mt-3 text-xs text-neutral-400">{readiness.feedbackLong}</p>
+              <p className="mt-3 text-xs text-neutral-400">
+                {formatReadinessFeedback(readiness.feedbackLong)}
+              </p>
             )}
             <dl className="mt-3 grid grid-cols-2 gap-2 text-[11px] text-neutral-400">
               <div>Sleep score · <span className="text-neutral-200">{readiness.factors.sleep ?? "—"}</span></div>
