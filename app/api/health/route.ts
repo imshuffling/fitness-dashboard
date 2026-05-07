@@ -1,12 +1,14 @@
 import { requireBearer } from "@/lib/oauth";
-import { buildHealthSummary } from "@/lib/health";
+import { buildHealthSummary, defaultTargetWatts } from "@/lib/health";
 
 export async function GET(req: Request) {
   const unauth = await requireBearer(req);
   if (unauth) return unauth;
 
-  const days = Number(new URL(req.url).searchParams.get("days") ?? 30);
-  const watts = Number(new URL(req.url).searchParams.get("watts") ?? 190);
+  const url = new URL(req.url);
+  const days = Number(url.searchParams.get("days") ?? 30);
+  const wattsParam = url.searchParams.get("watts");
+  const watts = wattsParam !== null ? Number(wattsParam) : defaultTargetWatts();
 
   try {
     const summary = await buildHealthSummary({ days, targetWatts: watts });

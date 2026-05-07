@@ -2,6 +2,8 @@
   "name": "fitness-dashboard",
   "version": "0.1.0",
   "private": true,
+  "description": "Next.js dashboard for Strava, Garmin Connect, and Intervals.icu fitness data, with an MCP server for Claude.",
+  "license": "MIT",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

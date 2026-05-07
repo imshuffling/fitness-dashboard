@@ -4,6 +4,7 @@ import {
   buildHealthSummary,
   calcHRAtPowerTrend,
   calcZone2Trend,
+  defaultTargetWatts,
 } from "./health";
 import {
   getIntervalsAthlete,
@@ -39,7 +40,7 @@ export function createMcpServer(): McpServer {
           .min(50)
           .max(500)
           .optional()
-          .describe("Target wattage for the HR-at-power trend (default 190)"),
+          .describe("Target wattage for the HR-at-power trend (defaults to DEFAULT_TARGET_WATTS env var, or 190)"),
       },
     },
     async ({ days, watts }) => {
@@ -85,7 +86,7 @@ export function createMcpServer(): McpServer {
       description:
         "Heart rate at a specific target power output over time. Falling HR at fixed watts indicates improving aerobic fitness.",
       inputSchema: {
-        watts: z.number().int().min(50).max(500).describe("Target wattage e.g. 190"),
+        watts: z.number().int().min(50).max(500).describe(`Target wattage (e.g. ${defaultTargetWatts()})`),
         days: z
           .number()
           .int()

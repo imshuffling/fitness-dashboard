@@ -1,14 +1,25 @@
 export type ZoneKey = "zone1" | "zone2" | "zone3" | "zone4" | "zone5";
 
-// Bands per HR Zone Calculator with Max HR = 185 bpm.
-// Z1 93-111 · Z2 111-130 · Z3 130-148 · Z4 148-167 · Z5 167-185
-export const ZONES: Record<ZoneKey, [number, number]> = {
-  zone1: [0, 110],
-  zone2: [111, 129],
-  zone3: [130, 147],
-  zone4: [148, 166],
-  zone5: [167, 999],
-};
+const DEFAULT_HR_MAX_BPM = 190;
+
+function readMaxHr(): number {
+  const raw = process.env.HR_MAX_BPM;
+  const parsed = raw ? parseInt(raw, 10) : NaN;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_HR_MAX_BPM;
+}
+
+function computeZones(maxHr: number): Record<ZoneKey, [number, number]> {
+  const pct = (p: number) => Math.round(maxHr * p);
+  return {
+    zone1: [0, pct(0.6) - 1],
+    zone2: [pct(0.6), pct(0.7) - 1],
+    zone3: [pct(0.7), pct(0.8) - 1],
+    zone4: [pct(0.8), pct(0.9) - 1],
+    zone5: [pct(0.9), 999],
+  };
+}
+
+export const ZONES: Record<ZoneKey, [number, number]> = computeZones(readMaxHr());
 
 const ZONE_KEYS: ZoneKey[] = ["zone1", "zone2", "zone3", "zone4", "zone5"];
 

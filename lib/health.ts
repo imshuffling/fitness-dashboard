@@ -13,6 +13,14 @@ import {
 } from "./zones";
 import { startOfWeek, format, parseISO } from "date-fns";
 
+const DEFAULT_TARGET_WATTS_FALLBACK = 190;
+
+export function defaultTargetWatts(): number {
+  const raw = process.env.DEFAULT_TARGET_WATTS;
+  const parsed = raw ? parseInt(raw, 10) : NaN;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_TARGET_WATTS_FALLBACK;
+}
+
 export type ActivitySummary = {
   id: number;
   name: string;
@@ -152,7 +160,7 @@ function classifyTrend(points: HRAtPowerPoint[]): HealthSummary["fitnessScore"] 
 
 export async function buildHealthSummary(opts: { days?: number; targetWatts?: number } = {}): Promise<HealthSummary> {
   const days = opts.days ?? 30;
-  const targetWatts = opts.targetWatts ?? 190;
+  const targetWatts = opts.targetWatts ?? defaultTargetWatts();
   const cacheKey = `summary:v1:${days}:${targetWatts}`;
   const cached = await cacheGet<HealthSummary>(cacheKey);
   if (cached) return cached;
