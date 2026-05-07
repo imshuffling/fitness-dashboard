@@ -142,7 +142,8 @@ export async function getGarminWeekSummary(): Promise<GarminDailySummary[]> {
 async function tryGet<T>(c: GarminConnect, path: string): Promise<T | null> {
   try {
     return (await c.get<T>(path)) ?? null;
-  } catch {
+  } catch (e) {
+    console.warn(`[garmin] GET ${path} failed:`, (e as Error).message);
     return null;
   }
 }
