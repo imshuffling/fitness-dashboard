@@ -503,7 +503,8 @@ export async function getGarminDashboard(date: Date = new Date()): Promise<Garmi
 }
 
 async function buildGarminDashboard(date: Date): Promise<GarminDashboard> {
-  const [daily, sleep, stress, bodyBattery, hr, hrv, readiness, restingHRTrend] = await Promise.all([
+  const yesterday = new Date(date.getTime() - 86400_000);
+  const [daily, sleep, stress, bodyBattery, hr, hrvToday, readiness, restingHRTrend] = await Promise.all([
     getGarminDailyFull(date),
     getGarminSleepStages(date),
     getGarminStress(date),
@@ -513,6 +514,10 @@ async function buildGarminDashboard(date: Date): Promise<GarminDashboard> {
     getGarminReadiness(date),
     getGarminRestingHRTrend(14),
   ]);
+  const hrv =
+    hrvToday.lastNightAvg === null && hrvToday.weeklyAvg === null
+      ? await getGarminHRV(yesterday)
+      : hrvToday;
   return {
     date: fmtDate(date),
     daily,
