@@ -4,6 +4,8 @@ Self-hosted Next.js dashboard that pulls your data from Strava, Garmin
 Connect, and Intervals.icu, and exposes a Model Context Protocol (MCP)
 server so Claude can answer questions about your training.
 
+<img width="3024" height="3516" alt="image" src="https://github.com/user-attachments/assets/c05e796e-7dfc-4fd5-9192-fa0e578bdfe2" />
+
 - HR-at-power trend, zone 2 volume, weekly rollups
 - Garmin wellness panel (HRV, sleep, body battery, readiness, stress)
 - Training load + ramp rate from Intervals.icu
