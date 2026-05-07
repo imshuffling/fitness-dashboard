@@ -43,8 +43,8 @@ export default function SleepStagesChart({
     return <p className="text-xs text-neutral-500">No sleep data.</p>;
   }
   return (
-    <div className="space-y-1.5">
-      <div className="relative h-24 w-full">
+    <div className="space-y-2">
+      <div className="relative h-32 w-full">
         {intraday.map((seg, i) => {
           const left = ((seg.start - startTs) / span) * 100;
           const width = Math.max(0.3, ((seg.end - seg.start) / span) * 100);

@@ -26,24 +26,26 @@ export default function StressDonut({
     },
     []
   );
+  const hasData = value !== null;
   return (
     <div className="relative aspect-square w-full max-w-[200px] mx-auto">
       <svg viewBox="0 0 140 140" className="w-full h-full -rotate-90">
         <circle cx="70" cy="70" r={r} stroke="#262626" strokeWidth="10" fill="none" />
-        {arcs.map((a, i) => (
-          <circle
-            key={i}
-            cx="70"
-            cy="70"
-            r={r}
-            stroke={a.color}
-            strokeWidth="10"
-            fill="none"
-            strokeDasharray={`${a.len} ${circ - a.len}`}
-            strokeDashoffset={-a.offset}
-            strokeLinecap="butt"
-          />
-        ))}
+        {hasData &&
+          arcs.map((a, i) => (
+            <circle
+              key={i}
+              cx="70"
+              cy="70"
+              r={r}
+              stroke={a.color}
+              strokeWidth="10"
+              fill="none"
+              strokeDasharray={`${a.len} ${circ - a.len}`}
+              strokeDashoffset={-a.offset}
+              strokeLinecap="butt"
+            />
+          ))}
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
         <span className="text-4xl font-semibold text-neutral-100 tabular-nums">

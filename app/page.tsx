@@ -149,18 +149,20 @@ export default async function Home() {
 
         {garminLinked && garminDash && (
           <>
-            <section className="space-y-3">
-              <h2 className="text-2xl font-semibold px-1">In Focus</h2>
-              <Card title="Body Battery" icon={<BodyBatteryIcon />}>
-                <BodyBatteryHero
-                  current={garminDash.bodyBattery.end}
-                  charged={garminDash.bodyBattery.charged}
-                  drained={garminDash.bodyBattery.drained}
-                  intraday={garminDash.bodyBattery.intraday}
-                  highest={garminDash.daily.bodyBatteryHighestValue}
-                />
-              </Card>
-            </section>
+            {garminDash.bodyBattery.intraday.length > 0 && (
+              <section className="space-y-3">
+                <h2 className="text-2xl font-semibold px-1">In Focus</h2>
+                <Card title="Body Battery" icon={<BodyBatteryIcon />}>
+                  <BodyBatteryHero
+                    current={garminDash.bodyBattery.end}
+                    charged={garminDash.bodyBattery.charged}
+                    drained={garminDash.bodyBattery.drained}
+                    intraday={garminDash.bodyBattery.intraday}
+                    highest={garminDash.daily.bodyBatteryHighestValue}
+                  />
+                </Card>
+              </section>
+            )}
 
             <section className="space-y-3">
               <h2 className="text-2xl font-semibold px-1">At a Glance</h2>
@@ -175,33 +177,45 @@ export default async function Home() {
                         )}m`
                       : undefined
                   }
+                  className="flex flex-col"
                 >
                   <div className="flex items-baseline gap-3 mb-3">
                     <span className="text-4xl font-semibold tabular-nums">
                       {garminDash.sleep.sleepScore ?? "—"}
                     </span>
-                    <span className="text-xs text-neutral-500">Duration</span>
+                    <span className="text-xs text-neutral-500">
+                      {garminDash.sleep.totalHours !== null
+                        ? `${Math.floor(garminDash.sleep.totalHours)}h ${Math.round(
+                            (garminDash.sleep.totalHours % 1) * 60
+                          )}m Duration`
+                        : "Duration"}
+                    </span>
                   </div>
-                  <SleepStagesChart
-                    intraday={garminDash.sleep.intraday}
-                    startTs={garminDash.sleep.startTs}
-                    endTs={garminDash.sleep.endTs}
-                  />
+                  <div className="flex-1 flex flex-col justify-end">
+                    <SleepStagesChart
+                      intraday={garminDash.sleep.intraday}
+                      startTs={garminDash.sleep.startTs}
+                      endTs={garminDash.sleep.endTs}
+                    />
+                  </div>
                 </Card>
 
-                <Card title="Heart Rate" icon={<HeartIcon />}>
+                <Card
+                  title="Heart Rate"
+                  icon={<HeartIcon />}
+                  meta={
+                    garminDash.hr.min !== null && garminDash.hr.max !== null
+                      ? `${garminDash.hr.min}–${garminDash.hr.max}`
+                      : undefined
+                  }
+                >
                   <ZonedGauge
                     value={garminDash.hr.resting ?? garminDash.daily.restingHeartRate}
                     min={40}
                     max={180}
                     zones={HR_ZONES}
+                    unit="bpm Resting"
                   />
-                  <div className="mt-3 text-center">
-                    <p className="text-sm text-neutral-100 tabular-nums">
-                      {garminDash.daily.restingHeartRate ?? garminDash.hr.resting ?? "—"} bpm
-                    </p>
-                    <p className="text-[11px] text-neutral-500">Resting</p>
-                  </div>
                 </Card>
 
                 <Card

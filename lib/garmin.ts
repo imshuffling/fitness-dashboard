@@ -640,15 +640,15 @@ async function buildGarminDashboard(date: Date): Promise<GarminDashboard> {
     (_, i) => new Date(date.getTime() - (6 - i) * 86400_000)
   );
   const [
-    daily,
-    sleep,
-    stress,
-    bodyBattery,
+    dailyToday,
+    sleepToday,
+    stressToday,
+    bodyBatteryToday,
     hr,
     hrvToday,
     readiness,
     restingHRTrend,
-    pulseOx,
+    pulseOxToday,
     hrvHistory,
     weekDaily,
     weekSleep,
@@ -668,10 +668,36 @@ async function buildGarminDashboard(date: Date): Promise<GarminDashboard> {
     Promise.all(weekDates.map((d) => getGarminSleepStages(d))),
     Promise.all(weekDates.map((d) => getGarminPulseOx(d))),
   ]);
-  const hrv =
-    hrvToday.lastNightAvg === null && hrvToday.weeklyAvg === null
-      ? await getGarminHRV(yesterday)
-      : hrvToday;
+
+  const dailyEmpty = dailyToday.totalSteps === null && dailyToday.restingHeartRate === null;
+  const sleepEmpty = sleepToday.totalHours === null;
+  const stressEmpty = stressToday.avg === null;
+  const bodyBatteryEmpty = bodyBatteryToday.intraday.length === 0;
+  const pulseOxEmpty = pulseOxToday.avg === null;
+  const hrvEmpty = hrvToday.lastNightAvg === null && hrvToday.weeklyAvg === null;
+
+  const [
+    dailyFallback,
+    sleepFallback,
+    stressFallback,
+    bodyBatteryFallback,
+    pulseOxFallback,
+    hrvFallback,
+  ] = await Promise.all([
+    dailyEmpty ? getGarminDailyFull(yesterday) : Promise.resolve(dailyToday),
+    sleepEmpty ? getGarminSleepStages(yesterday) : Promise.resolve(sleepToday),
+    stressEmpty ? getGarminStress(yesterday) : Promise.resolve(stressToday),
+    bodyBatteryEmpty ? getGarminBodyBattery(yesterday) : Promise.resolve(bodyBatteryToday),
+    pulseOxEmpty ? getGarminPulseOx(yesterday) : Promise.resolve(pulseOxToday),
+    hrvEmpty ? getGarminHRV(yesterday) : Promise.resolve(hrvToday),
+  ]);
+
+  const daily = dailyFallback;
+  const sleep = sleepFallback;
+  const stress = stressFallback;
+  const bodyBattery = bodyBatteryFallback;
+  const pulseOx = pulseOxFallback;
+  const hrv = hrvFallback;
   return {
     date: fmtDate(date),
     daily,
