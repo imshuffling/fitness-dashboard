@@ -1,41 +1,49 @@
 import Link from "next/link";
 import Calendar from "@/components/Calendar";
-import StatCard from "@/components/StatCard";
 import TrainingLoadChart from "@/components/TrainingLoadChart";
-import WellnessStrip from "@/components/WellnessStrip";
-import Gauge from "@/components/garmin/Gauge";
-import SleepStagesBar from "@/components/garmin/SleepStagesBar";
-import { buildHealthSummary } from "@/lib/health";
+import BodyBatteryHero from "@/components/garmin/BodyBatteryHero";
+import Card from "@/components/garmin/Card";
+import HRVStatusCard from "@/components/garmin/HRVStatusCard";
+import Last7DaysCard from "@/components/garmin/Last7DaysCard";
+import SleepStagesChart from "@/components/garmin/SleepStagesChart";
+import StressDonut from "@/components/garmin/StressDonut";
+import YesterdayCard from "@/components/garmin/YesterdayCard";
+import ZonedGauge from "@/components/garmin/ZonedGauge";
 import {
-  getGarminDashboard,
-  getGarminWeekSummary,
-  type GarminDailySummary,
-  type GarminDashboard,
-} from "@/lib/garmin";
+  BodyBatteryIcon,
+  FloorsIcon,
+  HeartIcon,
+  HRVIcon,
+  PulseOxIcon,
+  SleepIcon,
+  StressIcon,
+} from "@/components/garmin/Icons";
+import { buildHealthSummary } from "@/lib/health";
+import { getGarminDashboard, type GarminDashboard } from "@/lib/garmin";
 import { isGarminConnected } from "@/lib/garminTokens";
 import { getTrainingLoadTrend, isIntervalsConfigured, type LoadPoint } from "@/lib/intervals";
 import { isConnected } from "@/lib/tokens";
 
 export const dynamic = "force-dynamic";
 
-function hrvColor(status: string | null): string {
-  switch (status) {
-    case "BALANCED":
-      return "#22c55e";
-    case "UNBALANCED":
-      return "#eab308";
-    case "LOW":
-    case "POOR":
-      return "#ef4444";
-    default:
-      return "#737373";
-  }
-}
+const HR_ZONES = [
+  { from: 40, color: "#737373" },
+  { from: 95, color: "#3b82f6" },
+  { from: 115, color: "#22c55e" },
+  { from: 140, color: "#f59e0b" },
+  { from: 160, color: "#ef4444" },
+];
+
+const PULSE_OX_ZONES = [
+  { from: 0, color: "#ef4444" },
+  { from: 89, color: "#f59e0b" },
+  { from: 95, color: "#22c55e" },
+];
 
 export default async function Home() {
   if (!(await isConnected())) {
     return (
-      <main className="min-h-screen flex items-center justify-center p-8 bg-neutral-950 text-neutral-100">
+      <main className="min-h-screen flex items-center justify-center p-8 bg-black text-neutral-100">
         <div className="max-w-md text-center space-y-6">
           <h1 className="text-3xl font-semibold">Fitness Dashboard</h1>
           <p className="text-neutral-400">
@@ -55,7 +63,6 @@ export default async function Home() {
   let summary;
   let trainingLoad: LoadPoint[] = [];
   let intervalsError: string | null = null;
-  let garminWeek: GarminDailySummary[] = [];
   let garminDash: GarminDashboard | null = null;
   let garminLinked = false;
   let garminError: string | null = null;
@@ -64,7 +71,7 @@ export default async function Home() {
     summary = await buildHealthSummary({ days: 90 });
   } catch (e) {
     return (
-      <main className="min-h-screen flex items-center justify-center p-8 bg-neutral-950 text-neutral-100">
+      <main className="min-h-screen flex items-center justify-center p-8 bg-black text-neutral-100">
         <div className="max-w-lg text-center space-y-4">
           <h1 className="text-2xl font-semibold">Failed to load data</h1>
           <pre className="text-xs text-red-400 whitespace-pre-wrap">{(e as Error).message}</pre>
@@ -80,53 +87,51 @@ export default async function Home() {
   }
 
   garminLinked = await isGarminConnected();
-  const [intervalsRes, garminRes, garminDashRes] = await Promise.allSettled([
+  const [intervalsRes, garminDashRes] = await Promise.allSettled([
     isIntervalsConfigured() ? getTrainingLoadTrend(90) : Promise.resolve([] as LoadPoint[]),
-    garminLinked ? getGarminWeekSummary() : Promise.resolve([] as GarminDailySummary[]),
     garminLinked ? getGarminDashboard() : Promise.resolve(null as GarminDashboard | null),
   ]);
   if (intervalsRes.status === "fulfilled") trainingLoad = intervalsRes.value;
   else intervalsError = (intervalsRes.reason as Error).message;
-  if (garminRes.status === "fulfilled") garminWeek = garminRes.value;
-  else garminError = (garminRes.reason as Error).message;
   if (garminDashRes.status === "fulfilled") garminDash = garminDashRes.value;
+  else garminError = (garminDashRes.reason as Error).message;
 
-  const trendLabel: Record<string, string> = {
-    improving: "↓ Improving",
-    stable: "→ Stable",
-    declining: "↑ Declining",
-    insufficient_data: "— Need more data",
-  };
+  const nowMs = new Date(summary.generatedAt).getTime();
+  const yesterdayKey = new Date(nowMs - 86400_000).toISOString().slice(0, 10);
+  const yesterdayActivity =
+    summary.recentActivities.find((a) => a.date.startsWith(yesterdayKey)) ??
+    summary.recentActivities[0] ??
+    null;
+
+  const last7DaysRides = summary.recentActivities.filter((a) => {
+    const ageMs = nowMs - new Date(a.date).getTime();
+    return ageMs <= 7 * 86400_000 && a.type.toLowerCase().includes("ride");
+  });
+  const last7DaysRideKm = last7DaysRides.reduce((s, a) => s + a.distanceKm, 0);
 
   return (
-    <main className="min-h-screen bg-neutral-950 text-neutral-100 p-3 sm:p-10">
-      <div className="max-w-6xl mx-auto space-y-5 sm:space-y-8">
-        <header className="flex flex-wrap items-end justify-between gap-4">
+    <main className="min-h-screen bg-black text-neutral-100 p-3 sm:p-8">
+      <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
+        <header className="flex items-center justify-between gap-4 px-1">
           <div className="min-w-0">
-            <h1 className="text-2xl sm:text-3xl font-semibold truncate">
+            <h1 className="text-xl sm:text-2xl font-semibold truncate">
               {summary.athlete.name || "Athlete"}
             </h1>
-            <p className="text-neutral-500 text-xs sm:text-sm">
-              Last updated {new Date(summary.generatedAt).toLocaleTimeString()}
+            <p className="text-neutral-500 text-[11px] sm:text-xs">
+              Updated {new Date(summary.generatedAt).toLocaleTimeString()}
             </p>
           </div>
-          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-            <span
-              className={`text-sm font-medium px-3 py-1 rounded-full ${
-                summary.fitnessScore === "improving"
-                  ? "bg-green-500/10 text-green-400"
-                  : summary.fitnessScore === "declining"
-                  ? "bg-red-500/10 text-red-400"
-                  : "bg-neutral-800 text-neutral-300"
-              }`}
+          <div className="flex items-center gap-2">
+            <Link
+              href="/garmin"
+              className="text-xs text-neutral-400 hover:text-neutral-200 px-2 py-1"
             >
-              {trendLabel[summary.fitnessScore]}
-            </span>
+              Detail
+            </Link>
             <form action="/api/cache/clear" method="POST">
               <button
                 type="submit"
-                title="Clear cached summaries (15-min TTL)"
-                className="text-xs text-neutral-500 hover:text-neutral-300 px-2 py-1"
+                className="text-xs text-neutral-400 hover:text-neutral-200 px-2 py-1"
               >
                 Refresh
               </button>
@@ -142,153 +147,183 @@ export default async function Home() {
           </div>
         </header>
 
-        <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <StatCard
-            label="This week"
-            value={summary.thisWeek.activities}
-            hint={`activities · ${summary.thisWeek.rides} rides`}
-          />
-          <StatCard label="Total min" value={summary.thisWeek.totalMinutes} hint="this week" />
-          <StatCard label="Zone 2 min" value={summary.thisWeek.zone2Minutes} hint="this week" />
-          <StatCard
-            label="Z2 share"
-            value={`${summary.thisWeek.zone2Pct}%`}
-            hint="of weekly time"
-          />
-        </section>
+        {garminLinked && garminDash && (
+          <>
+            <section className="space-y-3">
+              <h2 className="text-2xl font-semibold px-1">In Focus</h2>
+              <Card title="Body Battery" icon={<BodyBatteryIcon />}>
+                <BodyBatteryHero
+                  current={garminDash.bodyBattery.end}
+                  charged={garminDash.bodyBattery.charged}
+                  drained={garminDash.bodyBattery.drained}
+                  intraday={garminDash.bodyBattery.intraday}
+                  highest={garminDash.daily.bodyBatteryHighestValue}
+                />
+              </Card>
+            </section>
+
+            <section className="space-y-3">
+              <h2 className="text-2xl font-semibold px-1">At a Glance</h2>
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                <Card
+                  title="Sleep Score"
+                  icon={<SleepIcon />}
+                  meta={
+                    garminDash.sleep.totalHours !== null
+                      ? `${Math.floor(garminDash.sleep.totalHours)}h ${Math.round(
+                          (garminDash.sleep.totalHours % 1) * 60
+                        )}m`
+                      : undefined
+                  }
+                >
+                  <div className="flex items-baseline gap-3 mb-3">
+                    <span className="text-4xl font-semibold tabular-nums">
+                      {garminDash.sleep.sleepScore ?? "—"}
+                    </span>
+                    <span className="text-xs text-neutral-500">Duration</span>
+                  </div>
+                  <SleepStagesChart
+                    intraday={garminDash.sleep.intraday}
+                    startTs={garminDash.sleep.startTs}
+                    endTs={garminDash.sleep.endTs}
+                  />
+                </Card>
+
+                <Card title="Heart Rate" icon={<HeartIcon />}>
+                  <ZonedGauge
+                    value={garminDash.hr.resting ?? garminDash.daily.restingHeartRate}
+                    min={40}
+                    max={180}
+                    zones={HR_ZONES}
+                  />
+                  <div className="mt-3 text-center">
+                    <p className="text-sm text-neutral-100 tabular-nums">
+                      {garminDash.daily.restingHeartRate ?? garminDash.hr.resting ?? "—"} bpm
+                    </p>
+                    <p className="text-[11px] text-neutral-500">Resting</p>
+                  </div>
+                </Card>
+
+                <Card
+                  title="Stress"
+                  icon={<StressIcon />}
+                  meta={garminDash.stress.max !== null ? `max ${garminDash.stress.max}` : undefined}
+                >
+                  <StressDonut value={garminDash.stress.avg} />
+                  <p className="mt-2 text-center text-[11px] text-neutral-500">avg today</p>
+                </Card>
+
+                <Card title="Floors" icon={<FloorsIcon />}>
+                  <ZonedGauge
+                    value={garminDash.daily.floorsAscended}
+                    min={0}
+                    max={Math.max(20, (garminDash.daily.floorsAscended ?? 0) + 5)}
+                    zones={[
+                      { from: 0, color: "#262626" },
+                      { from: 1, color: "#22d3ee" },
+                    ]}
+                    unit="floors"
+                  />
+                </Card>
+
+                <Card
+                  title="Pulse Ox"
+                  icon={<PulseOxIcon />}
+                  meta={
+                    garminDash.pulseOx.lowest !== null
+                      ? `min ${garminDash.pulseOx.lowest}%`
+                      : undefined
+                  }
+                >
+                  <ZonedGauge
+                    value={garminDash.pulseOx.avg}
+                    min={80}
+                    max={100}
+                    zones={PULSE_OX_ZONES}
+                    display={garminDash.pulseOx.avg !== null ? `${garminDash.pulseOx.avg}%` : "—"}
+                  />
+                </Card>
+
+                <Card title="HRV Status" icon={<HRVIcon />}>
+                  <HRVStatusCard
+                    status={garminDash.hrv.status}
+                    weeklyAvg={garminDash.hrv.weeklyAvg}
+                    lastNightAvg={garminDash.hrv.lastNightAvg}
+                    baseline={garminDash.hrv.baseline}
+                    history={garminDash.hrvHistory}
+                  />
+                </Card>
+              </div>
+            </section>
+
+            <section className="space-y-3">
+              <h2 className="text-2xl font-semibold px-1">Yesterday</h2>
+              <div className="grid lg:grid-cols-2 gap-3 sm:gap-4">
+                <Card>
+                  <YesterdayCard
+                    activity={yesterdayActivity}
+                    daily={garminDash.weekDaily[5] ?? garminDash.daily}
+                    sleep={garminDash.weekSleep[5] ?? garminDash.sleep}
+                    hrv={garminDash.hrv}
+                    pulseOx={garminDash.weekPulseOx[5] ?? garminDash.pulseOx}
+                    bodyBatteryDelta={{
+                      charged: garminDash.bodyBattery.charged,
+                      drained: garminDash.bodyBattery.drained,
+                    }}
+                  />
+                </Card>
+                <Card title="Last 7 Days">
+                  <Last7DaysCard
+                    rollup={garminDash.weekRollup}
+                    rideCount={last7DaysRides.length}
+                    rideDistanceKm={last7DaysRideKm}
+                  />
+                </Card>
+              </div>
+            </section>
+          </>
+        )}
+
+        {!garminLinked && (
+          <section>
+            <Card>
+              <p className="text-sm text-neutral-400">
+                Connect Garmin Connect to populate health metrics.{" "}
+                <Link href="/auth/garmin" className="text-orange-400 hover:text-orange-300">
+                  Connect Garmin →
+                </Link>
+              </p>
+            </Card>
+          </section>
+        )}
+
+        {garminLinked && garminError && !garminDash && (
+          <section>
+            <Card>
+              <p className="text-xs text-red-400 break-all">{garminError}</p>
+            </Card>
+          </section>
+        )}
 
         {isIntervalsConfigured() && (
-          <section className="rounded-xl bg-neutral-900 border border-neutral-800 p-3 sm:p-5">
-            <div className="flex items-baseline justify-between mb-3">
-              <h2 className="text-lg font-semibold">Training load (intervals.icu)</h2>
-              <p className="text-xs text-neutral-500">CTL · ATL · TSB</p>
-            </div>
-            {intervalsError ? (
-              <p className="text-xs text-red-400">{intervalsError}</p>
-            ) : (
-              <TrainingLoadChart points={trainingLoad} />
-            )}
+          <section className="space-y-3">
+            <h2 className="text-2xl font-semibold px-1">Training Load</h2>
+            <Card meta="CTL · ATL · TSB">
+              {intervalsError ? (
+                <p className="text-xs text-red-400">{intervalsError}</p>
+              ) : (
+                <TrainingLoadChart points={trainingLoad} />
+              )}
+            </Card>
           </section>
         )}
 
-        <section className="rounded-xl bg-neutral-900 border border-neutral-800 p-3 sm:p-5">
-          <div className="flex items-baseline justify-between gap-2 mb-3">
-            <h2 className="text-base sm:text-lg font-semibold whitespace-nowrap">
-              Garmin · 7d
-            </h2>
-            {garminLinked ? (
-              <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
-                <Link
-                  href="/garmin"
-                  className="text-xs text-orange-400 hover:text-orange-300"
-                >
-                  Full dashboard →
-                </Link>
-                <form action="/api/garmin/logout" method="POST">
-                  <button
-                    type="submit"
-                    className="text-[11px] text-neutral-500 hover:text-neutral-300"
-                  >
-                    Disconnect
-                  </button>
-                </form>
-              </div>
-            ) : (
-              <Link
-                href="/auth/garmin"
-                className="text-xs text-orange-400 hover:text-orange-300"
-              >
-                Connect Garmin →
-              </Link>
-            )}
-          </div>
-          {!garminLinked ? (
-            <p className="text-sm text-neutral-500">
-              Connect Garmin Connect to see daily steps, sleep, and resting HR.
-            </p>
-          ) : garminError ? (
-            <p className="text-xs text-red-400 break-all">{garminError}</p>
-          ) : (
-            <WellnessStrip days={garminWeek} />
-          )}
+        <section className="space-y-3">
+          <h2 className="text-2xl font-semibold px-1">Activity Calendar</h2>
+          <Card>
+            <Calendar activities={summary.recentActivities} />
+          </Card>
         </section>
-
-        {garminLinked && garminDash && (
-          <section className="grid lg:grid-cols-2 gap-4">
-            <div className="rounded-xl bg-neutral-900 border border-neutral-800 p-3 sm:p-5">
-              <div className="flex items-baseline justify-between mb-3">
-                <h2 className="text-base sm:text-lg font-semibold">Last night sleep</h2>
-                <span className="text-[11px] text-neutral-500">
-                  {garminDash.sleep.sleepScore !== null
-                    ? `score ${garminDash.sleep.sleepScore}`
-                    : ""}
-                </span>
-              </div>
-              <div className="flex items-baseline gap-2 mb-4">
-                <span className="text-3xl font-semibold">
-                  {garminDash.sleep.totalHours !== null
-                    ? `${garminDash.sleep.totalHours}h`
-                    : "—"}
-                </span>
-                {garminDash.sleep.avgSleepHR !== null && (
-                  <span className="text-sm text-neutral-500">
-                    avg HR {garminDash.sleep.avgSleepHR}bpm
-                  </span>
-                )}
-              </div>
-              <SleepStagesBar stages={garminDash.sleep} />
-            </div>
-
-            <div className="rounded-xl bg-neutral-900 border border-neutral-800 p-3 sm:p-5">
-              <div className="flex items-baseline justify-between mb-3">
-                <h2 className="text-base sm:text-lg font-semibold">HRV status</h2>
-                <span className="text-[11px] text-neutral-500">
-                  {garminDash.hrv.weeklyAvg !== null
-                    ? `wk avg ${garminDash.hrv.weeklyAvg} ms`
-                    : ""}
-                </span>
-              </div>
-              <Gauge
-                value={garminDash.hrv.lastNightAvg}
-                max={Math.max(120, (garminDash.hrv.baseline.balancedUpper ?? 80) + 20)}
-                label={garminDash.hrv.status ?? "—"}
-                color={hrvColor(garminDash.hrv.status)}
-              />
-              <dl className="mt-3 grid grid-cols-2 gap-2 text-[11px] text-neutral-400">
-                <div>
-                  Last night ·{" "}
-                  <span className="text-neutral-200">
-                    {garminDash.hrv.lastNightAvg ?? "—"} ms
-                  </span>
-                </div>
-                <div>
-                  Weekly avg ·{" "}
-                  <span className="text-neutral-200">
-                    {garminDash.hrv.weeklyAvg ?? "—"} ms
-                  </span>
-                </div>
-                <div>
-                  Balanced low ·{" "}
-                  <span className="text-neutral-200">
-                    {garminDash.hrv.baseline.balancedLow ?? "—"}
-                  </span>
-                </div>
-                <div>
-                  Balanced high ·{" "}
-                  <span className="text-neutral-200">
-                    {garminDash.hrv.baseline.balancedUpper ?? "—"}
-                  </span>
-                </div>
-              </dl>
-            </div>
-          </section>
-        )}
-
-        <section className="rounded-xl bg-neutral-900 border border-neutral-800 p-3 sm:p-5">
-          <h2 className="text-lg font-semibold mb-3">Activity calendar</h2>
-          <Calendar activities={summary.recentActivities} />
-        </section>
-
       </div>
     </main>
   );

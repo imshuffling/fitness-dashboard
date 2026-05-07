@@ -221,7 +221,7 @@ async function getGarminBodyBattery(date: Date): Promise<BodyBatteryDay> {
   };
 }
 
-type HRVDay = {
+export type HRVDay = {
   date: string;
   lastNightAvg: number | null;
   weeklyAvg: number | null;
@@ -298,7 +298,7 @@ async function getGarminReadiness(date: Date): Promise<ReadinessDay> {
   };
 }
 
-type DailyFull = {
+export type DailyFull = {
   date: string;
   totalSteps: number | null;
   stepGoal: number | null;
@@ -350,7 +350,13 @@ async function getGarminDailyFull(date: Date): Promise<DailyFull> {
   };
 }
 
-type SleepStages = {
+export type SleepLevelPoint = {
+  start: number;
+  end: number;
+  level: number;
+};
+
+export type SleepStages = {
   date: string;
   totalHours: number | null;
   deepHours: number | null;
@@ -360,6 +366,9 @@ type SleepStages = {
   sleepScore: number | null;
   avgSleepHR: number | null;
   avgRespiration: number | null;
+  startTs: number | null;
+  endTs: number | null;
+  intraday: SleepLevelPoint[];
 };
 
 async function getGarminSleepStages(date: Date): Promise<SleepStages> {
@@ -367,27 +376,31 @@ async function getGarminSleepStages(date: Date): Promise<SleepStages> {
   const sleep = await c.getSleepData(date).catch(() => null);
   await persist(c);
   const dateStr = fmtDate(date);
-  if (!sleep) {
-    return {
-      date: dateStr,
-      totalHours: null,
-      deepHours: null,
-      lightHours: null,
-      remHours: null,
-      awakeHours: null,
-      sleepScore: null,
-      avgSleepHR: null,
-      avgRespiration: null,
-    };
-  }
+  const empty: SleepStages = {
+    date: dateStr,
+    totalHours: null,
+    deepHours: null,
+    lightHours: null,
+    remHours: null,
+    awakeHours: null,
+    sleepScore: null,
+    avgSleepHR: null,
+    avgRespiration: null,
+    startTs: null,
+    endTs: null,
+    intraday: [],
+  };
+  if (!sleep) return empty;
   const dto = sleep.dailySleepDTO as unknown as {
     sleepTimeSeconds?: number;
     deepSleepSeconds?: number;
     lightSleepSeconds?: number;
     remSleepSeconds?: number;
     awakeSleepSeconds?: number;
+    sleepStartTimestampGMT?: number;
+    sleepEndTimestampGMT?: number;
     sleepScores?: { overall?: { value?: number } };
-    averageSpO2Value?: number;
+    averageRespirationValue?: number;
   };
   const toH = (s: number | undefined) =>
     s === undefined ? null : Math.round((s / 3600) * 10) / 10;
@@ -396,6 +409,18 @@ async function getGarminSleepStages(date: Date): Promise<SleepStages> {
     hr && hr.length > 0
       ? Math.round(hr.reduce((sum, p) => sum + p.value, 0) / hr.length)
       : null;
+  const levels = (sleep.sleepLevels as Array<{
+    startGMT: string;
+    endGMT: string;
+    activityLevel: number;
+  }> | undefined) ?? [];
+  const intraday: SleepLevelPoint[] = levels
+    .filter((l) => l && l.startGMT && l.endGMT)
+    .map((l) => ({
+      start: new Date(l.startGMT).getTime(),
+      end: new Date(l.endGMT).getTime(),
+      level: l.activityLevel,
+    }));
   return {
     date: dateStr,
     totalHours: toH(dto?.sleepTimeSeconds),
@@ -405,7 +430,10 @@ async function getGarminSleepStages(date: Date): Promise<SleepStages> {
     awakeHours: toH(dto?.awakeSleepSeconds),
     sleepScore: dto?.sleepScores?.overall?.value ?? null,
     avgSleepHR: avgHR,
-    avgRespiration: null,
+    avgRespiration: dto?.averageRespirationValue ?? null,
+    startTs: dto?.sleepStartTimestampGMT ?? null,
+    endTs: dto?.sleepEndTimestampGMT ?? null,
+    intraday,
   };
 }
 
@@ -471,6 +499,66 @@ export type RestingHRStats = {
   max: number | null;
 };
 
+export type PulseOxDay = {
+  date: string;
+  avg: number | null;
+  lowest: number | null;
+  latest: number | null;
+};
+
+async function getGarminPulseOx(date: Date): Promise<PulseOxDay> {
+  const c = await getClient();
+  const dateStr = fmtDate(date);
+  const data = await tryGet<{
+    averageSpO2?: number;
+    lowestSpO2?: number;
+    latestSpO2?: number;
+    spo2HourlyAverages?: Array<[number, number]>;
+  }>(c, `/wellness-service/wellness/pulseOx/${dateStr}`);
+  await persist(c);
+  return {
+    date: dateStr,
+    avg: data?.averageSpO2 ?? null,
+    lowest: data?.lowestSpO2 ?? null,
+    latest: data?.latestSpO2 ?? null,
+  };
+}
+
+export type HRVHistoryPoint = {
+  date: string;
+  lastNightAvg: number | null;
+  weeklyAvg: number | null;
+  status: string | null;
+};
+
+async function getGarminHRVHistory(days = 28): Promise<HRVHistoryPoint[]> {
+  const today = new Date();
+  const dates = Array.from(
+    { length: days },
+    (_, i) => new Date(today.getTime() - (days - 1 - i) * 86400_000)
+  );
+  const results = await Promise.allSettled(dates.map((d) => getGarminHRV(d)));
+  return results.map((r, i) =>
+    r.status === "fulfilled"
+      ? {
+          date: r.value.date,
+          lastNightAvg: r.value.lastNightAvg,
+          weeklyAvg: r.value.weeklyAvg,
+          status: r.value.status,
+        }
+      : { date: fmtDate(dates[i]), lastNightAvg: null, weeklyAvg: null, status: null }
+  );
+}
+
+export type WeekRollup = {
+  steps: { avg: number | null; total: number | null };
+  sleep: { scoreAvg: number | null; durationAvgHours: number | null };
+  restingHR: { avg: number | null };
+  stress: { avg: number | null };
+  floors: { avg: number | null };
+  pulseOx: { avg: number | null };
+};
+
 export type GarminDashboard = {
   date: string;
   daily: DailyFull;
@@ -479,9 +567,15 @@ export type GarminDashboard = {
   bodyBattery: BodyBatteryDay;
   hr: HRDay;
   hrv: HRVDay;
+  hrvHistory: HRVHistoryPoint[];
+  pulseOx: PulseOxDay;
   readiness: ReadinessDay;
   restingHRTrend: RestingHRPoint[];
   restingHRStats: RestingHRStats;
+  weekDaily: DailyFull[];
+  weekSleep: SleepStages[];
+  weekPulseOx: PulseOxDay[];
+  weekRollup: WeekRollup;
 };
 
 function aggregateRestingHR(trend: RestingHRPoint[]): RestingHRStats {
@@ -502,9 +596,64 @@ export async function getGarminDashboard(date: Date = new Date()): Promise<Garmi
   return cacheGetOrSet(`garmin:dash:${fmtDate(date)}`, 10 * 60, () => buildGarminDashboard(date));
 }
 
+function avg(values: Array<number | null | undefined>): number | null {
+  const valid = values.filter((v): v is number => typeof v === "number" && !Number.isNaN(v));
+  if (valid.length === 0) return null;
+  return Math.round(valid.reduce((s, v) => s + v, 0) / valid.length);
+}
+
+function avgFloat(values: Array<number | null | undefined>, decimals = 1): number | null {
+  const valid = values.filter((v): v is number => typeof v === "number" && !Number.isNaN(v));
+  if (valid.length === 0) return null;
+  const m = Math.pow(10, decimals);
+  return Math.round((valid.reduce((s, v) => s + v, 0) / valid.length) * m) / m;
+}
+
+function buildWeekRollup(
+  daily: DailyFull[],
+  sleep: SleepStages[],
+  pulseOx: PulseOxDay[]
+): WeekRollup {
+  const stepValues = daily.map((d) => d.totalSteps);
+  return {
+    steps: {
+      avg: avg(stepValues),
+      total: stepValues.every((v) => v === null)
+        ? null
+        : stepValues.reduce<number>((s, v) => s + (v ?? 0), 0),
+    },
+    sleep: {
+      scoreAvg: avg(sleep.map((d) => d.sleepScore)),
+      durationAvgHours: avgFloat(sleep.map((d) => d.totalHours)),
+    },
+    restingHR: { avg: avg(daily.map((d) => d.restingHeartRate)) },
+    stress: { avg: avg(daily.map((d) => d.averageStressLevel)) },
+    floors: { avg: avg(daily.map((d) => d.floorsAscended)) },
+    pulseOx: { avg: avg(pulseOx.map((d) => d.avg)) },
+  };
+}
+
 async function buildGarminDashboard(date: Date): Promise<GarminDashboard> {
   const yesterday = new Date(date.getTime() - 86400_000);
-  const [daily, sleep, stress, bodyBattery, hr, hrvToday, readiness, restingHRTrend] = await Promise.all([
+  const weekDates = Array.from(
+    { length: 7 },
+    (_, i) => new Date(date.getTime() - (6 - i) * 86400_000)
+  );
+  const [
+    daily,
+    sleep,
+    stress,
+    bodyBattery,
+    hr,
+    hrvToday,
+    readiness,
+    restingHRTrend,
+    pulseOx,
+    hrvHistory,
+    weekDaily,
+    weekSleep,
+    weekPulseOx,
+  ] = await Promise.all([
     getGarminDailyFull(date),
     getGarminSleepStages(date),
     getGarminStress(date),
@@ -513,6 +662,11 @@ async function buildGarminDashboard(date: Date): Promise<GarminDashboard> {
     getGarminHRV(date),
     getGarminReadiness(date),
     getGarminRestingHRTrend(14),
+    getGarminPulseOx(date),
+    getGarminHRVHistory(28),
+    Promise.all(weekDates.map((d) => getGarminDailyFull(d))),
+    Promise.all(weekDates.map((d) => getGarminSleepStages(d))),
+    Promise.all(weekDates.map((d) => getGarminPulseOx(d))),
   ]);
   const hrv =
     hrvToday.lastNightAvg === null && hrvToday.weeklyAvg === null
@@ -526,8 +680,14 @@ async function buildGarminDashboard(date: Date): Promise<GarminDashboard> {
     bodyBattery,
     hr,
     hrv,
+    hrvHistory,
+    pulseOx,
     readiness,
     restingHRTrend,
     restingHRStats: aggregateRestingHR(restingHRTrend),
+    weekDaily,
+    weekSleep,
+    weekPulseOx,
+    weekRollup: buildWeekRollup(weekDaily, weekSleep, weekPulseOx),
   };
 }
