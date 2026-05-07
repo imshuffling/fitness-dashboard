@@ -2,7 +2,6 @@ import Link from "next/link";
 import Calendar from "@/components/Calendar";
 import HeaderMenu from "@/components/HeaderMenu";
 import TrainingLoadChart from "@/components/TrainingLoadChart";
-import BodyBatteryHero from "@/components/garmin/BodyBatteryHero";
 import Card from "@/components/garmin/Card";
 import HRVStatusCard from "@/components/garmin/HRVStatusCard";
 import Last7DaysCard from "@/components/garmin/Last7DaysCard";
@@ -11,7 +10,6 @@ import StressDonut from "@/components/garmin/StressDonut";
 import YesterdayCard from "@/components/garmin/YesterdayCard";
 import ZonedGauge from "@/components/garmin/ZonedGauge";
 import {
-  BodyBatteryIcon,
   FloorsIcon,
   HeartIcon,
   HRVIcon,
@@ -127,22 +125,7 @@ export default async function Home() {
 
         {garminLinked && garminDash && (
           <>
-            {garminDash.bodyBattery.intraday.length > 0 && (
-              <section className="space-y-3">
-                <h2 className="text-2xl font-semibold px-1">In Focus</h2>
-                <Card title="Body Battery" icon={<BodyBatteryIcon />}>
-                  <BodyBatteryHero
-                    current={garminDash.bodyBattery.end}
-                    charged={garminDash.bodyBattery.charged}
-                    drained={garminDash.bodyBattery.drained}
-                    intraday={garminDash.bodyBattery.intraday}
-                    highest={garminDash.daily.bodyBatteryHighestValue}
-                  />
-                </Card>
-              </section>
-            )}
-
-            <section className="space-y-3">
+<section className="space-y-3">
               <h2 className="text-2xl font-semibold px-1">At a Glance</h2>
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                 <Card title="Sleep Score" icon={<SleepIcon />} className="flex flex-col">
