@@ -1,9 +1,21 @@
 import type { IGarminTokens } from "garmin-connect/dist/garmin/types";
-import { createTokenStore } from "./tokenStore";
+import { cacheDelete, cacheGet, cacheSet } from "./kv";
 
-const store = createTokenStore<IGarminTokens>({ kvKey: "garmin:tokens" });
+const KEY = "garmin:tokens";
+const DURABLE_TTL = 10 * 365 * 86400;
 
-export const loadGarminTokens = store.load;
-export const saveGarminTokens = store.save;
-export const clearGarminTokens = store.clear;
-export const isGarminConnected = store.isPresent;
+export function loadGarminTokens(): Promise<IGarminTokens | null> {
+  return cacheGet<IGarminTokens>(KEY);
+}
+
+export async function saveGarminTokens(value: IGarminTokens): Promise<void> {
+  await cacheSet(KEY, value, DURABLE_TTL);
+}
+
+export async function clearGarminTokens(): Promise<void> {
+  await cacheDelete(KEY);
+}
+
+export async function isGarminConnected(): Promise<boolean> {
+  return (await cacheGet<IGarminTokens>(KEY)) !== null;
+}

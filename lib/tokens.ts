@@ -1,4 +1,4 @@
-import { createTokenStore } from "./tokenStore";
+import { cacheDelete, cacheGet, cacheSet } from "./kv";
 
 export type StravaTokens = {
   access_token: string;
@@ -6,15 +6,28 @@ export type StravaTokens = {
   expires_at: number;
 };
 
-const store = createTokenStore<StravaTokens>({ kvKey: "strava:tokens" });
+const KEY = "strava:tokens";
+// ~10 years — tokens are durable; SDK refreshes before expiry.
+const DURABLE_TTL = 10 * 365 * 86400;
 
-export const loadTokens = store.load;
-export const saveTokens = store.save;
-export const clearTokens = store.clear;
-export const isConnected = store.isPresent;
+export function loadTokens(): Promise<StravaTokens | null> {
+  return cacheGet<StravaTokens>(KEY);
+}
+
+export async function saveTokens(value: StravaTokens): Promise<void> {
+  await cacheSet(KEY, value, DURABLE_TTL);
+}
+
+export async function clearTokens(): Promise<void> {
+  await cacheDelete(KEY);
+}
+
+export async function isConnected(): Promise<boolean> {
+  return (await cacheGet<StravaTokens>(KEY)) !== null;
+}
 
 export async function getAccessToken(): Promise<string> {
-  const t = await store.load();
+  const t = await loadTokens();
   if (!t) throw new Error("Not connected to Strava");
   if (t.expires_at * 1000 > Date.now() + 60_000) return t.access_token;
 
@@ -30,7 +43,7 @@ export async function getAccessToken(): Promise<string> {
   });
   if (!res.ok) throw new Error(`Strava refresh failed: ${res.status} ${await res.text()}`);
   const fresh = (await res.json()) as StravaTokens;
-  await store.save({
+  await saveTokens({
     access_token: fresh.access_token,
     refresh_token: fresh.refresh_token,
     expires_at: fresh.expires_at,
