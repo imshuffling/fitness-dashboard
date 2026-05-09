@@ -11,7 +11,12 @@ import {
   totalSeconds,
   type ZoneSeconds,
 } from "./zones";
-import { startOfWeek, format, parseISO } from "date-fns";
+import {
+  formatTrainingDay,
+  parseTrainingDay,
+  today,
+  weekStart,
+} from "./trainingDay";
 
 const DEFAULT_TARGET_WATTS_FALLBACK = 190;
 
@@ -133,7 +138,7 @@ function summariseActivity(a: StravaActivity, zones: ZoneSeconds | null): Activi
 function bucketByWeek(activities: ActivitySummary[]): WeekBucket[] {
   const map = new Map<string, WeekBucket>();
   for (const a of activities) {
-    const ws = format(startOfWeek(parseISO(a.date), { weekStartsOn: 1 }), "yyyy-MM-dd");
+    const ws = formatTrainingDay(weekStart(parseTrainingDay(a.date)));
     const cur =
       map.get(ws) ??
       ({ weekStart: ws, totalMin: 0, zone2Min: 0, pct: 0, rides: 0 } as WeekBucket);
@@ -185,9 +190,8 @@ export async function buildHealthSummary(opts: { days?: number; targetWatts?: nu
   hrAtPower.sort((a, b) => a.date.localeCompare(b.date));
   const weekly = bucketByWeek(summaries);
 
-  const now = new Date();
-  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  const thisWeekActs = summaries.filter((s) => parseISO(s.date) >= weekStart);
+  const ws = weekStart(today());
+  const thisWeekActs = summaries.filter((s) => parseTrainingDay(s.date) >= ws);
   const thisWeekRides = thisWeekActs.filter((a) => CYCLING_TYPES.has(a.type)).length;
   const thisWeekZ2 = thisWeekActs.reduce(
     (s, a) => s + (a.zones ? Math.round(a.zones.zone2 / 60) : 0),

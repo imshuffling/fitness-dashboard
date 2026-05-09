@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { GarminConnect } from "garmin-connect";
 import { COOKIE_NAME, isValid } from "@/lib/session";
 import { isGarminConnected, loadGarminTokens } from "@/lib/garminTokens";
+import { formatTrainingDay, parseTrainingDay, today } from "@/lib/trainingDay";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,7 +17,7 @@ export async function GET(req: Request) {
   }
 
   const url = new URL(req.url);
-  const date = url.searchParams.get("date") ?? new Date().toISOString().slice(0, 10);
+  const date = url.searchParams.get("date") ?? formatTrainingDay(today());
 
   const tokens = await loadGarminTokens();
   if (!tokens) {
@@ -57,7 +58,7 @@ export async function GET(req: Request) {
 
   let sleepResult: Result;
   try {
-    const sleep = await client.getSleepData(new Date(date));
+    const sleep = await client.getSleepData(parseTrainingDay(date));
     sleepResult = { ok: true, sample: summarize(sleep) };
   } catch (e) {
     sleepResult = { ok: false, error: (e as Error).message };
@@ -65,7 +66,7 @@ export async function GET(req: Request) {
 
   let hrResult: Result;
   try {
-    const hr = await client.getHeartRate(new Date(date));
+    const hr = await client.getHeartRate(parseTrainingDay(date));
     hrResult = { ok: true, sample: summarize(hr) };
   } catch (e) {
     hrResult = { ok: false, error: (e as Error).message };

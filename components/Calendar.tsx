@@ -15,15 +15,7 @@ import {
   startOfWeek,
 } from "date-fns";
 import ZoneBreakdown from "./ZoneBreakdown";
-
-type Zones = {
-  zone1: number;
-  zone2: number;
-  zone3: number;
-  zone4: number;
-  zone5: number;
-  [k: string]: number;
-};
+import type { ZoneSeconds } from "@/lib/zones";
 
 type Activity = {
   id: number;
@@ -35,7 +27,7 @@ type Activity = {
   avgHR: number | null;
   avgWatts: number | null;
   zone2Pct: number | null;
-  zones: Zones | null;
+  zones: ZoneSeconds | null;
 };
 
 type View = "week" | "month";

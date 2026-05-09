@@ -3,6 +3,7 @@
 // https://intervals.icu/settings (API section).
 
 import { cacheGetOrSet } from "./kv";
+import { daysAgo, formatTrainingDay, today } from "./trainingDay";
 
 const BASE = "https://intervals.icu/api/v1";
 
@@ -102,12 +103,9 @@ export type LoadPoint = { date: string; ctl: number; atl: number; tsb: number };
 
 export async function getTrainingLoadTrend(days = 90): Promise<LoadPoint[]> {
   return cacheGetOrSet(`intervals:load:${days}`, 30 * 60, async () => {
-    const newest = new Date();
-    const oldest = new Date(newest.getTime() - days * 86400_000);
-    const fmt = (d: Date) => d.toISOString().slice(0, 10);
     const wellness = await getIntervalsWellness({
-      oldest: fmt(oldest),
-      newest: fmt(newest),
+      oldest: formatTrainingDay(daysAgo(days)),
+      newest: formatTrainingDay(today()),
     });
     return wellness
       .filter((w) => w.ctl !== null && w.atl !== null)

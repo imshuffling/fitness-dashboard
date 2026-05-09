@@ -22,6 +22,7 @@ import { getGarminDashboard, type GarminDashboard } from "@/lib/garmin";
 import { isGarminConnected } from "@/lib/garminTokens";
 import { getTrainingLoadTrend, isIntervalsConfigured, type LoadPoint } from "@/lib/intervals";
 import { isConnected } from "@/lib/tokens";
+import { daysAgo, formatTrainingDay, parseTrainingDay } from "@/lib/trainingDay";
 
 export const dynamic = "force-dynamic";
 
@@ -95,16 +96,16 @@ export default async function Home() {
   if (garminDashRes.status === "fulfilled") garminDash = garminDashRes.value;
   else garminError = (garminDashRes.reason as Error).message;
 
-  const nowMs = new Date(summary.generatedAt).getTime();
-  const yesterdayKey = new Date(nowMs - 86400_000).toISOString().slice(0, 10);
+  const generatedAt = new Date(summary.generatedAt);
+  const yesterdayKey = formatTrainingDay(daysAgo(1, generatedAt));
   const yesterdayActivity =
     summary.recentActivities.find((a) => a.date.startsWith(yesterdayKey)) ??
     summary.recentActivities[0] ??
     null;
 
+  const sevenDaysAgo = daysAgo(7, generatedAt);
   const last7DaysRides = summary.recentActivities.filter((a) => {
-    const ageMs = nowMs - new Date(a.date).getTime();
-    return ageMs <= 7 * 86400_000 && a.type.toLowerCase().includes("ride");
+    return parseTrainingDay(a.date) >= sevenDaysAgo && a.type.toLowerCase().includes("ride");
   });
   const last7DaysRideKm = last7DaysRides.reduce((s, a) => s + a.distanceKm, 0);
 

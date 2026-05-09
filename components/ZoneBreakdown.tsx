@@ -2,33 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+import { ZONE_COLORS, ZONE_KEYS, ZONE_LABELS, type ZoneSeconds } from "@/lib/zones";
 
-const COLORS: Record<string, string> = {
-  zone1: "#3b82f6",
-  zone2: "#22c55e",
-  zone3: "#eab308",
-  zone4: "#f97316",
-  zone5: "#ef4444",
-};
-
-const LABELS: Record<string, string> = {
-  zone1: "Z1 Recovery",
-  zone2: "Z2 Endurance",
-  zone3: "Z3 Tempo",
-  zone4: "Z4 Threshold",
-  zone5: "Z5 VO2",
-};
-
-export type Zones = {
-  zone1: number;
-  zone2: number;
-  zone3: number;
-  zone4: number;
-  zone5: number;
-  [k: string]: number;
-};
-
-export default function ZoneBreakdown({ zones }: { zones: Zones | null }) {
+export default function ZoneBreakdown({ zones }: { zones: ZoneSeconds | null }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
@@ -40,8 +16,8 @@ export default function ZoneBreakdown({ zones }: { zones: Zones | null }) {
     );
   }
 
-  const data = (Object.keys(zones) as (keyof Zones)[])
-    .map((k) => ({ name: LABELS[k], value: Math.round(zones[k] / 60), key: k }))
+  const data = ZONE_KEYS
+    .map((k) => ({ name: ZONE_LABELS[k], value: Math.round(zones[k] / 60), key: k }))
     .filter((d) => d.value > 0);
 
   if (data.length === 0) {
@@ -63,7 +39,7 @@ export default function ZoneBreakdown({ zones }: { zones: Zones | null }) {
           />
           <Pie data={data} dataKey="value" nameKey="name" innerRadius={50} outerRadius={90} paddingAngle={2}>
             {data.map((entry) => (
-              <Cell key={entry.key} fill={COLORS[entry.key]} />
+              <Cell key={entry.key} fill={ZONE_COLORS[entry.key]} />
             ))}
           </Pie>
         </PieChart>
@@ -71,7 +47,7 @@ export default function ZoneBreakdown({ zones }: { zones: Zones | null }) {
       <ul className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-neutral-400">
         {data.map((d) => (
           <li key={d.key} className="flex items-center gap-1.5">
-            <span className="inline-block h-2 w-2 rounded-full" style={{ background: COLORS[d.key] }} />
+            <span className="inline-block h-2 w-2 rounded-full" style={{ background: ZONE_COLORS[d.key] }} />
             {d.name}: {d.value}m
           </li>
         ))}

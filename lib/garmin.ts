@@ -1,6 +1,7 @@
 import { GarminConnect } from "garmin-connect";
 import { loadGarminTokens, saveGarminTokens } from "./garminTokens";
 import { cacheGetOrSet } from "./kv";
+import { addDays, formatTrainingDay, pastDays, today } from "./trainingDay";
 
 let _client: GarminConnect | null = null;
 let _displayName: string | null = null;
@@ -85,7 +86,7 @@ export type GarminDailySummary = {
 
 async function getGarminDailySummary(date: Date): Promise<GarminDailySummary> {
   const c = await getClient();
-  const dateStr = date.toISOString().slice(0, 10);
+  const dateStr = formatTrainingDay(date);
 
   const [steps, sleep, hr] = await Promise.allSettled([
     c.getSteps(date),
@@ -115,18 +116,15 @@ async function getGarminDailySummary(date: Date): Promise<GarminDailySummary> {
 }
 
 export async function getGarminWeekSummary(): Promise<GarminDailySummary[]> {
-  const today = new Date();
-  return cacheGetOrSet(`garmin:week:${today.toISOString().slice(0, 10)}`, 30 * 60, async () => {
-    const dates = Array.from(
-      { length: 7 },
-      (_, i) => new Date(today.getTime() - (6 - i) * 86400_000)
-    );
+  const end = today();
+  return cacheGetOrSet(`garmin:week:${formatTrainingDay(end)}`, 30 * 60, async () => {
+    const dates = pastDays(7, end);
     const results = await Promise.allSettled(dates.map((d) => getGarminDailySummary(d)));
     return results.map((r, i) =>
       r.status === "fulfilled"
         ? r.value
         : {
-            date: dates[i].toISOString().slice(0, 10),
+            date: formatTrainingDay(dates[i]),
             steps: null,
             sleepHours: null,
             restingHR: null,
@@ -151,8 +149,6 @@ async function tryGet<T>(c: GarminConnect, path: string): Promise<T | null> {
   }
 }
 
-const fmtDate = (d: Date) => d.toISOString().slice(0, 10);
-
 type IntradayPoint = { ts: number; value: number };
 
 function pairsToPoints(arr: unknown): IntradayPoint[] {
@@ -171,7 +167,7 @@ type StressDay = {
 
 async function getGarminStress(date: Date): Promise<StressDay> {
   const c = await getClient();
-  const dateStr = fmtDate(date);
+  const dateStr = formatTrainingDay(date);
   const data = await tryGet<{
     avgStressLevel?: number;
     maxStressLevel?: number;
@@ -197,7 +193,7 @@ type BodyBatteryDay = {
 
 async function getGarminBodyBattery(date: Date): Promise<BodyBatteryDay> {
   const c = await getClient();
-  const dateStr = fmtDate(date);
+  const dateStr = formatTrainingDay(date);
   const data = await tryGet<{
     bodyBatteryValuesArray?: Array<[number, string | null, number | null, number | null]>;
     bodyBatteryValueDescriptorsDTOList?: Array<{ bodyBatteryValueDescriptorIndex: number; bodyBatteryValueDescriptorKey: string }>;
@@ -239,7 +235,7 @@ export type HRVDay = {
 
 async function getGarminHRV(date: Date): Promise<HRVDay> {
   const c = await getClient();
-  const dateStr = fmtDate(date);
+  const dateStr = formatTrainingDay(date);
   const data = await tryGet<{
     hrvSummary?: {
       lastNightAvg?: number;
@@ -278,7 +274,7 @@ type ReadinessDay = {
 
 async function getGarminReadiness(date: Date): Promise<ReadinessDay> {
   const c = await getClient();
-  const dateStr = fmtDate(date);
+  const dateStr = formatTrainingDay(date);
   const data = await tryGet<
     Array<{
       score?: number;
@@ -332,7 +328,7 @@ export type DailyFull = {
 
 async function getGarminDailyFull(date: Date): Promise<DailyFull> {
   const c = await getClient();
-  const dateStr = fmtDate(date);
+  const dateStr = formatTrainingDay(date);
   const name = await displayName(c);
 
   // Try displayName-scoped path first (current Garmin API), fall back to the
@@ -393,7 +389,7 @@ async function getGarminSleepStages(date: Date): Promise<SleepStages> {
   const c = await getClient();
   const sleep = await c.getSleepData(date).catch(() => null);
   await persist(c);
-  const dateStr = fmtDate(date);
+  const dateStr = formatTrainingDay(date);
   const empty: SleepStages = {
     date: dateStr,
     totalHours: null,
@@ -474,7 +470,7 @@ async function getGarminHRDetail(date: Date): Promise<HRDay> {
       }
     | null;
   await persist(c);
-  const dateStr = fmtDate(date);
+  const dateStr = formatTrainingDay(date);
   const intraday: IntradayPoint[] = Array.isArray(hr?.heartRateValues)
     ? hr!
         .heartRateValues!.filter((row) => row[1] !== null && row[1] !== undefined)
@@ -492,11 +488,7 @@ async function getGarminHRDetail(date: Date): Promise<HRDay> {
 type RestingHRPoint = { date: string; resting: number | null; min: number | null; max: number | null };
 
 async function getGarminRestingHRTrend(days = 14): Promise<RestingHRPoint[]> {
-  const today = new Date();
-  const dates = Array.from(
-    { length: days },
-    (_, i) => new Date(today.getTime() - (days - 1 - i) * 86400_000)
-  );
+  const dates = pastDays(days);
   const results = await Promise.allSettled(dates.map((d) => getGarminDailyFull(d)));
   return results.map((r, i) =>
     r.status === "fulfilled"
@@ -506,7 +498,7 @@ async function getGarminRestingHRTrend(days = 14): Promise<RestingHRPoint[]> {
           min: r.value.minHeartRate,
           max: r.value.maxHeartRate,
         }
-      : { date: fmtDate(dates[i]), resting: null, min: null, max: null }
+      : { date: formatTrainingDay(dates[i]), resting: null, min: null, max: null }
   );
 }
 
@@ -541,11 +533,7 @@ export type HRVHistoryPoint = {
 };
 
 async function getGarminHRVHistory(days = 28): Promise<HRVHistoryPoint[]> {
-  const today = new Date();
-  const dates = Array.from(
-    { length: days },
-    (_, i) => new Date(today.getTime() - (days - 1 - i) * 86400_000)
-  );
+  const dates = pastDays(days);
   const results = await Promise.allSettled(dates.map((d) => getGarminHRV(d)));
   return results.map((r, i) =>
     r.status === "fulfilled"
@@ -555,7 +543,7 @@ async function getGarminHRVHistory(days = 28): Promise<HRVHistoryPoint[]> {
           weeklyAvg: r.value.weeklyAvg,
           status: r.value.status,
         }
-      : { date: fmtDate(dates[i]), lastNightAvg: null, weeklyAvg: null, status: null }
+      : { date: formatTrainingDay(dates[i]), lastNightAvg: null, weeklyAvg: null, status: null }
   );
 }
 
@@ -601,8 +589,8 @@ function aggregateRestingHR(trend: RestingHRPoint[]): RestingHRStats {
   };
 }
 
-export async function getGarminDashboard(date: Date = new Date()): Promise<GarminDashboard> {
-  return cacheGetOrSet(`garmin:dash:${fmtDate(date)}`, 10 * 60, () => buildGarminDashboard(date));
+export async function getGarminDashboard(date: Date = today()): Promise<GarminDashboard> {
+  return cacheGetOrSet(`garmin:dash:${formatTrainingDay(date)}`, 10 * 60, () => buildGarminDashboard(date));
 }
 
 function avg(values: Array<number | null | undefined>): number | null {
@@ -643,11 +631,8 @@ function buildWeekRollup(
 }
 
 async function buildGarminDashboard(date: Date): Promise<GarminDashboard> {
-  const yesterday = new Date(date.getTime() - 86400_000);
-  const weekDates = Array.from(
-    { length: 7 },
-    (_, i) => new Date(date.getTime() - (6 - i) * 86400_000)
-  );
+  const yesterday = addDays(date, -1);
+  const weekDates = pastDays(7, date);
   const [
     dailyToday,
     sleepToday,
@@ -706,7 +691,7 @@ async function buildGarminDashboard(date: Date): Promise<GarminDashboard> {
   const hrv = hrvFallback;
   const weekPulseOx = weekDaily.map(pulseOxFromDaily);
   return {
-    date: fmtDate(date),
+    date: formatTrainingDay(date),
     daily,
     sleep,
     stress,

@@ -1,4 +1,19 @@
+/**
+ * Zone — heart-rate training zones (Z1 recovery → Z5 VO2).
+ *
+ * Single source of truth for zone bounds, the canonical `ZoneSeconds` shape,
+ * the universal Z1–Z5 colour palette, short labels, and the calculations that
+ * turn a stream into time-in-zone or HR-at-power. Components import from
+ * here — there are no parallel `Zones` types or hex maps elsewhere.
+ *
+ * See `CONTEXT.md` (Zone) for rationale and the single-discipline caveat.
+ */
+
 export type ZoneKey = "zone1" | "zone2" | "zone3" | "zone4" | "zone5";
+
+export const ZONE_KEYS: ZoneKey[] = ["zone1", "zone2", "zone3", "zone4", "zone5"];
+
+export type ZoneBounds = Record<ZoneKey, [number, number]>;
 
 const DEFAULT_HR_MAX_BPM = 190;
 
@@ -8,7 +23,12 @@ function readMaxHr(): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_HR_MAX_BPM;
 }
 
-function computeZones(maxHr: number): Record<ZoneKey, [number, number]> {
+/**
+ * Build zone bounds for an explicit max-HR. Used internally to derive
+ * `ZONES`; exported as an escape hatch for hypothetical per-athlete profiles.
+ * Adding a real per-athlete model warrants an ADR first.
+ */
+export function zonesFor(maxHr: number): ZoneBounds {
   const pct = (p: number) => Math.round(maxHr * p);
   return {
     zone1: [0, pct(0.6) - 1],
@@ -19,25 +39,37 @@ function computeZones(maxHr: number): Record<ZoneKey, [number, number]> {
   };
 }
 
-export const ZONES: Record<ZoneKey, [number, number]> = computeZones(readMaxHr());
+/** Zone bounds for the configured `HR_MAX_BPM`. */
+export const ZONES: ZoneBounds = zonesFor(readMaxHr());
 
-const ZONE_KEYS: ZoneKey[] = ["zone1", "zone2", "zone3", "zone4", "zone5"];
+/** Hex colour for each zone — the universal training palette. */
+export const ZONE_COLORS: Record<ZoneKey, string> = {
+  zone1: "#3b82f6",
+  zone2: "#22c55e",
+  zone3: "#eab308",
+  zone4: "#f97316",
+  zone5: "#ef4444",
+};
 
-function zoneOf(hr: number): ZoneKey | null {
+/** Short human label for each zone. */
+export const ZONE_LABELS: Record<ZoneKey, string> = {
+  zone1: "Z1 Recovery",
+  zone2: "Z2 Endurance",
+  zone3: "Z3 Tempo",
+  zone4: "Z4 Threshold",
+  zone5: "Z5 VO2",
+};
+
+/** Which zone does this HR fall into, given `bounds` (default `ZONES`)? */
+export function zoneOf(hr: number, bounds: ZoneBounds = ZONES): ZoneKey | null {
   for (const k of ZONE_KEYS) {
-    const [lo, hi] = ZONES[k];
+    const [lo, hi] = bounds[k];
     if (hr >= lo && hr <= hi) return k;
   }
   return null;
 }
 
-export type ZoneSeconds = {
-  zone1: number;
-  zone2: number;
-  zone3: number;
-  zone4: number;
-  zone5: number;
-};
+export type ZoneSeconds = Record<ZoneKey, number>;
 
 export function emptyZoneSeconds(): ZoneSeconds {
   return { zone1: 0, zone2: 0, zone3: 0, zone4: 0, zone5: 0 };
