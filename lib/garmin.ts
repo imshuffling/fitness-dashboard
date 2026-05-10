@@ -508,12 +508,57 @@ async function getGarminRestingHRTrend(days = 14): Promise<RestingHRPoint[]> {
   );
 }
 
+async function fetchRestingHRDayPoint(date: Date): Promise<RestingHRPoint> {
+  const dateStr = formatTrainingDay(date);
+  const c = await getClient();
+  const name = await displayName(c);
+  const path = name
+    ? `/usersummary-service/usersummary/daily/${name}?calendarDate=${dateStr}`
+    : `/usersummary-service/usersummary/daily?calendarDate=${dateStr}`;
+  const data = await tryGet<Record<string, unknown>>(c, path);
+  return {
+    date: dateStr,
+    resting: (data?.restingHeartRate as number | undefined) ?? null,
+    min: (data?.minHeartRate as number | undefined) ?? null,
+    max: (data?.maxHeartRate as number | undefined) ?? null,
+  };
+}
+
+async function cachedRestingHRDayPoint(date: Date): Promise<RestingHRPoint> {
+  const ageDays = Math.floor((today().getTime() - date.getTime()) / (24 * 60 * 60 * 1000));
+  // Last 2 days may still be settling on Garmin's side — use short TTL so
+  // values backfill once available. Older days are immutable.
+  const ttl = ageDays < 2 ? 60 * 60 : 30 * 24 * 60 * 60;
+  const key = `garmin:resting-hr-day:${formatTrainingDay(date)}`;
+  return cacheGetOrSet(key, ttl, () => fetchRestingHRDayPoint(date));
+}
+
 async function getGarminRestingHRYearTrend(): Promise<RestingHRPoint[]> {
-  return cacheGetOrSet(
-    `garmin:resting-hr-year:${formatTrainingDay(today())}`,
-    12 * 60 * 60,
-    () => getGarminRestingHRTrend(365)
-  );
+  try {
+    const dates = pastDays(365);
+    const chunkSize = 10;
+    const out: RestingHRPoint[] = [];
+    for (let i = 0; i < dates.length; i += chunkSize) {
+      const chunk = dates.slice(i, i + chunkSize);
+      const settled = await Promise.allSettled(chunk.map((d) => cachedRestingHRDayPoint(d)));
+      settled.forEach((r, idx) => {
+        out.push(
+          r.status === "fulfilled"
+            ? r.value
+            : { date: formatTrainingDay(chunk[idx]), resting: null, min: null, max: null }
+        );
+      });
+    }
+    try {
+      await persist(await getClient());
+    } catch {
+      // ignore
+    }
+    return out;
+  } catch (e) {
+    console.warn("[garmin] year resting HR trend failed:", (e as Error).message);
+    return [];
+  }
 }
 
 export type RestingHRStats = {
