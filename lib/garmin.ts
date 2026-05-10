@@ -489,7 +489,13 @@ type RestingHRPoint = { date: string; resting: number | null; min: number | null
 
 async function getGarminRestingHRTrend(days = 14): Promise<RestingHRPoint[]> {
   const dates = pastDays(days);
-  const results = await Promise.allSettled(dates.map((d) => getGarminDailyFull(d)));
+  const chunkSize = 20;
+  const results: PromiseSettledResult<DailyFull>[] = [];
+  for (let i = 0; i < dates.length; i += chunkSize) {
+    const chunk = dates.slice(i, i + chunkSize);
+    const settled = await Promise.allSettled(chunk.map((d) => getGarminDailyFull(d)));
+    results.push(...settled);
+  }
   return results.map((r, i) =>
     r.status === "fulfilled"
       ? {
@@ -499,6 +505,14 @@ async function getGarminRestingHRTrend(days = 14): Promise<RestingHRPoint[]> {
           max: r.value.maxHeartRate,
         }
       : { date: formatTrainingDay(dates[i]), resting: null, min: null, max: null }
+  );
+}
+
+async function getGarminRestingHRYearTrend(): Promise<RestingHRPoint[]> {
+  return cacheGetOrSet(
+    `garmin:resting-hr-year:${formatTrainingDay(today())}`,
+    12 * 60 * 60,
+    () => getGarminRestingHRTrend(365)
   );
 }
 
@@ -569,6 +583,8 @@ export type GarminDashboard = {
   readiness: ReadinessDay;
   restingHRTrend: RestingHRPoint[];
   restingHRStats: RestingHRStats;
+  restingHRYearTrend: RestingHRPoint[];
+  restingHRYearStats: RestingHRStats;
   weekDaily: DailyFull[];
   weekSleep: SleepStages[];
   weekPulseOx: PulseOxDay[];
@@ -642,6 +658,7 @@ async function buildGarminDashboard(date: Date): Promise<GarminDashboard> {
     hrvToday,
     readiness,
     restingHRTrend,
+    restingHRYearTrend,
     hrvHistory,
     weekDaily,
     weekSleep,
@@ -654,6 +671,7 @@ async function buildGarminDashboard(date: Date): Promise<GarminDashboard> {
     getGarminHRV(date),
     getGarminReadiness(date),
     getGarminRestingHRTrend(14),
+    getGarminRestingHRYearTrend(),
     getGarminHRVHistory(28),
     Promise.all(weekDates.map((d) => getGarminDailyFull(d))),
     Promise.all(weekDates.map((d) => getGarminSleepStages(d))),
@@ -703,6 +721,8 @@ async function buildGarminDashboard(date: Date): Promise<GarminDashboard> {
     readiness,
     restingHRTrend,
     restingHRStats: aggregateRestingHR(restingHRTrend),
+    restingHRYearTrend,
+    restingHRYearStats: aggregateRestingHR(restingHRYearTrend),
     weekDaily,
     weekSleep,
     weekPulseOx,

@@ -14,7 +14,13 @@ import {
 
 type Point = { date: string; resting: number | null; min: number | null; max: number | null };
 
-export default function RestingHRTrend({ points }: { points: Point[] }) {
+export default function RestingHRTrend({
+  points,
+  showDots = true,
+}: {
+  points: Point[];
+  showDots?: boolean;
+}) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const valid = points.filter((p) => p.resting !== null);
@@ -55,7 +61,7 @@ export default function RestingHRTrend({ points }: { points: Point[] }) {
             dataKey="resting"
             stroke="#ef4444"
             strokeWidth={2}
-            dot={{ r: 3, fill: "#ef4444" }}
+            dot={showDots ? { r: 3, fill: "#ef4444" } : false}
             connectNulls
           />
         </ComposedChart>

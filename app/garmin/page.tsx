@@ -107,6 +107,8 @@ export default async function GarminDashboardPage() {
     readiness,
     restingHRTrend,
     restingHRStats,
+    restingHRYearTrend,
+    restingHRYearStats,
   } = dash;
 
   return (
@@ -332,6 +334,23 @@ export default async function GarminDashboardPage() {
             <RestingHRTrend points={restingHRTrend} />
             <p className="mt-2 text-[11px] text-neutral-500">
               Bars = daily HR range (max − min). Line = resting HR. Trend down = improving aerobic fitness.
+            </p>
+          </div>
+
+          <div>
+            <div className="flex items-baseline justify-between mb-2">
+              <h3 className="text-sm uppercase tracking-wider text-neutral-500">
+                Resting HR · year
+              </h3>
+              <span className="text-[11px] text-neutral-500">
+                {restingHRYearStats.avg !== null
+                  ? `avg ${restingHRYearStats.avg} · range ${restingHRYearStats.min}–${restingHRYearStats.max}`
+                  : ""}
+              </span>
+            </div>
+            <RestingHRTrend points={restingHRYearTrend} showDots={false} />
+            <p className="mt-2 text-[11px] text-neutral-500">
+              Last 365 days. Bars = daily HR range. Line = resting HR.
             </p>
           </div>
         </section>

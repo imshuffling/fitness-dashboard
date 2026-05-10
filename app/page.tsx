@@ -99,9 +99,9 @@ export default async function Home() {
   const generatedAt = new Date(summary.generatedAt);
   const yesterdayKey = formatTrainingDay(daysAgo(1, generatedAt));
   const yesterdayActivity =
-    summary.recentActivities.find((a) => a.date.startsWith(yesterdayKey)) ??
-    summary.recentActivities[0] ??
-    null;
+    summary.recentActivities.find(
+      (a) => a.date.startsWith(yesterdayKey) && a.type.toLowerCase().includes("ride"),
+    ) ?? null;
 
   const sevenDaysAgo = daysAgo(7, generatedAt);
   const last7DaysRides = summary.recentActivities.filter((a) => {
