@@ -1,3 +1,4 @@
+import Image from "next/image";
 import {
   BikeIcon,
   BodyBatteryIcon,
@@ -38,21 +39,34 @@ export default function YesterdayCard({
   return (
     <div className="space-y-3">
       {activity && (
-        <div className="rounded-xl bg-neutral-800/60 p-4 flex items-center gap-3">
-          <div className="rounded-full bg-emerald-500/20 p-2">
-            <BikeIcon />
-          </div>
-          <div className="min-w-0">
-            <p className="text-xs text-neutral-400 truncate">{activity.name}</p>
-            <p className="text-lg font-semibold tabular-nums">
-              {activity.distanceKm.toFixed(2)} km
-            </p>
-            <p className="text-[11px] text-neutral-500 tabular-nums">
-              {Math.floor(activity.durationMin / 60)}:
-              {String(Math.round(activity.durationMin % 60)).padStart(2, "0")}
-              {activity.avgWatts !== null && ` · ${activity.avgWatts}W avg`}
-              {activity.avgHR !== null && ` · ${activity.avgHR}bpm`}
-            </p>
+        <div className="overflow-hidden rounded-xl bg-neutral-800/60">
+          {activity.photoUrl && (
+            <div className="relative h-40 w-full">
+              <Image
+                src={activity.photoUrl}
+                alt=""
+                fill
+                sizes="(max-width: 768px) 100vw, 50vw"
+                className="object-cover"
+              />
+            </div>
+          )}
+          <div className="p-4 flex items-center gap-3">
+            <div className="rounded-full bg-emerald-500/20 p-2">
+              <BikeIcon />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-neutral-400 truncate">{activity.name}</p>
+              <p className="text-lg font-semibold tabular-nums">
+                {activity.distanceKm.toFixed(2)} km
+              </p>
+              <p className="text-[11px] text-neutral-500 tabular-nums">
+                {Math.floor(activity.durationMin / 60)}:
+                {String(Math.round(activity.durationMin % 60)).padStart(2, "0")}
+                {activity.avgWatts !== null && ` · ${activity.avgWatts}W avg`}
+                {activity.avgHR !== null && ` · ${activity.avgHR}bpm`}
+              </p>
+            </div>
           </div>
         </div>
       )}

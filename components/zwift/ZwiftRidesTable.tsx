@@ -1,3 +1,4 @@
+import Image from "next/image";
 import type { ActivitySummary } from "@/lib/health";
 
 export default function ZwiftRidesTable({ rides }: { rides: ActivitySummary[] }) {
@@ -14,6 +15,7 @@ export default function ZwiftRidesTable({ rides }: { rides: ActivitySummary[] })
       <table className="min-w-full text-sm">
         <thead>
           <tr className="text-left text-[11px] uppercase tracking-wider text-neutral-500 border-b border-neutral-800">
+            <th className="py-2 pr-3 font-medium w-12"></th>
             <th className="py-2 pr-3 font-medium">Date</th>
             <th className="py-2 pr-3 font-medium">Ride</th>
             <th className="py-2 pr-3 font-medium text-right">Dur</th>
@@ -26,6 +28,19 @@ export default function ZwiftRidesTable({ rides }: { rides: ActivitySummary[] })
         <tbody className="divide-y divide-neutral-900">
           {rides.map((r) => (
             <tr key={r.id} className="hover:bg-neutral-900/50">
+              <td className="py-2 pr-3">
+                {r.photoUrl ? (
+                  <Image
+                    src={r.photoUrl}
+                    alt=""
+                    width={40}
+                    height={40}
+                    className="h-10 w-10 rounded object-cover"
+                  />
+                ) : (
+                  <div className="h-10 w-10 rounded bg-neutral-800/60" />
+                )}
+              </td>
               <td className="py-2 pr-3 text-neutral-400 whitespace-nowrap">
                 {r.date.slice(0, 10)}
               </td>

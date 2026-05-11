@@ -1,6 +1,7 @@
 import { cacheGet, cacheScanDelete, cacheSet } from "./kv";
 import {
   getActivities,
+  getActivityPhotos,
   getActivityStreams,
   getAthleteProfile,
   type StravaActivity,
@@ -37,6 +38,8 @@ export type ActivitySummary = {
   avgWatts: number | null;
   zone2Pct: number | null;
   zones: ZoneSeconds | null;
+  photoUrl: string | null;
+  photoCount: number;
 };
 
 export type WeekBucket = {
@@ -70,7 +73,7 @@ export type HealthSummary = {
 const CYCLING_TYPES = new Set(["Ride", "VirtualRide", "EBikeRide", "Velomobile"]);
 
 export async function clearSummaryCache(): Promise<number> {
-  const patterns = ["summary:v1:*", "summary:v2:*", "summary:v3:*", "intervals:load:*", "garmin:week:*", "garmin:dash:*"];
+  const patterns = ["summary:v1:*", "summary:v2:*", "summary:v3:*", "summary:v4:*", "intervals:load:*", "garmin:week:*", "garmin:dash:*"];
   let deleted = 0;
   for (const pattern of patterns) {
     deleted += await cacheScanDelete(pattern);
@@ -122,7 +125,11 @@ async function enrichActivity(
   return result;
 }
 
-function summariseActivity(a: StravaActivity, zones: ZoneSeconds | null): ActivitySummary {
+function summariseActivity(
+  a: StravaActivity,
+  zones: ZoneSeconds | null,
+  media: ActivityMedia
+): ActivitySummary {
   return {
     id: a.id,
     name: a.name,
@@ -134,7 +141,45 @@ function summariseActivity(a: StravaActivity, zones: ZoneSeconds | null): Activi
     avgWatts: a.average_watts ? Math.round(a.average_watts) : null,
     zone2Pct: zones ? Math.round((zones.zone2 / Math.max(1, totalSeconds(zones))) * 100) : null,
     zones,
+    photoUrl: media.photoUrl,
+    photoCount: media.photoCount,
   };
+}
+
+type ActivityMedia = { photoUrl: string | null; photoCount: number };
+
+/**
+ * Resolve the activity's primary photo URL, if any. Strava's
+ * /athlete/activities list payload only carries `total_photo_count` —
+ * URLs come from a per-activity call. Cached for 30 days since the
+ * activity (and its uploaded media) is effectively immutable.
+ */
+async function fetchActivityMedia(a: StravaActivity): Promise<ActivityMedia> {
+  const count = a.total_photo_count ?? a.photo_count ?? 0;
+  if (count <= 0) return { photoUrl: null, photoCount: 0 };
+
+  const cacheKey = `photos:v1:${a.id}`;
+  const cached = await cacheGet<ActivityMedia>(cacheKey);
+  if (cached) return cached;
+
+  let result: ActivityMedia = { photoUrl: null, photoCount: count };
+  try {
+    const photos = await getActivityPhotos(a.id, 1024);
+    const first = photos[0];
+    if (first) {
+      const sizes = Object.keys(first.urls)
+        .map((k) => parseInt(k, 10))
+        .filter((n) => Number.isFinite(n))
+        .sort((x, y) => y - x);
+      const key = sizes[0]?.toString() ?? Object.keys(first.urls)[0];
+      result = { photoUrl: key ? first.urls[key] ?? null : null, photoCount: photos.length };
+    }
+  } catch {
+    // photo fetch failed — leave nulls
+  }
+
+  await cacheSet(cacheKey, result, 30 * 86400);
+  return result;
 }
 
 function bucketByWeek(activities: ActivitySummary[]): WeekBucket[] {
@@ -178,7 +223,7 @@ function classifyTrend(points: HRAtPowerPoint[]): HealthSummary["fitnessScore"] 
 export async function buildHealthSummary(opts: { days?: number; targetWatts?: number } = {}): Promise<HealthSummary> {
   const days = opts.days ?? 30;
   const targetWatts = opts.targetWatts ?? defaultTargetWatts();
-  const cacheKey = `summary:v3:${days}:${targetWatts}`;
+  const cacheKey = `summary:v4:${days}:${targetWatts}`;
   const cached = await cacheGet<HealthSummary>(cacheKey);
   if (cached) return cached;
 
@@ -188,8 +233,11 @@ export async function buildHealthSummary(opts: { days?: number; targetWatts?: nu
   const hrAtPower: HRAtPowerPoint[] = [];
 
   for (const a of activities) {
-    const { zones, avgHR } = await enrichActivity(a, targetWatts);
-    summaries.push(summariseActivity(a, zones));
+    const [{ zones, avgHR }, media] = await Promise.all([
+      enrichActivity(a, targetWatts),
+      fetchActivityMedia(a),
+    ]);
+    summaries.push(summariseActivity(a, zones, media));
     if (avgHR !== null) {
       hrAtPower.push({
         date: a.start_date_local.slice(0, 10),

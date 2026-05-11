@@ -20,6 +20,17 @@ export type StravaActivity = {
   device_watts?: boolean;
   has_heartrate?: boolean;
   total_elevation_gain?: number;
+  total_photo_count?: number;
+  photo_count?: number;
+};
+
+export type StravaPhoto = {
+  id?: number | string;
+  unique_id?: string;
+  activity_id?: number;
+  urls: Record<string, string>;
+  caption?: string | null;
+  created_at?: string;
 };
 
 export type StravaAthlete = {
@@ -98,4 +109,11 @@ export async function getActivityStreams(
 
 export async function getActivityDetail(id: number): Promise<StravaActivity & Record<string, unknown>> {
   return stravaFetch(`/activities/${id}`);
+}
+
+export async function getActivityPhotos(id: number, size = 1024): Promise<StravaPhoto[]> {
+  return stravaFetch<StravaPhoto[]>(`/activities/${id}/photos`, {
+    size,
+    photo_sources: "true",
+  });
 }
