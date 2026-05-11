@@ -66,7 +66,21 @@ export default function HeaderMenu() {
               <path d="M2.5 8a5.5 5.5 0 1 0 11 0 5.5 5.5 0 0 0-11 0Z" stroke="currentColor" strokeWidth="1.3" />
               <path d="M8 5v3l2 1.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            Detail
+            Garmin
+          </Link>
+          <Link
+            href="/zwift"
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-neutral-200 hover:bg-neutral-800/80"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+              <circle cx="4.5" cy="11" r="2" stroke="currentColor" strokeWidth="1.3" />
+              <circle cx="11.5" cy="11" r="2" stroke="currentColor" strokeWidth="1.3" />
+              <path d="M4.5 11 8 5h3l1.5 6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M8 5 6.5 3H5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+            </svg>
+            Zwift
           </Link>
           <form action="/api/cache/clear" method="POST" className="contents">
             <button

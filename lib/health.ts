@@ -49,7 +49,7 @@ export type WeekBucket = {
   byType: Record<string, number>;
 };
 
-export type HRAtPowerPoint = { date: string; hr: number; watts: number };
+export type HRAtPowerPoint = { date: string; hr: number; watts: number; type: string };
 
 export type HealthSummary = {
   athlete: { name: string; weight?: number };
@@ -70,7 +70,7 @@ export type HealthSummary = {
 const CYCLING_TYPES = new Set(["Ride", "VirtualRide", "EBikeRide", "Velomobile"]);
 
 export async function clearSummaryCache(): Promise<number> {
-  const patterns = ["summary:v1:*", "summary:v2:*", "intervals:load:*", "garmin:week:*", "garmin:dash:*"];
+  const patterns = ["summary:v1:*", "summary:v2:*", "summary:v3:*", "intervals:load:*", "garmin:week:*", "garmin:dash:*"];
   let deleted = 0;
   for (const pattern of patterns) {
     deleted += await cacheScanDelete(pattern);
@@ -178,7 +178,7 @@ function classifyTrend(points: HRAtPowerPoint[]): HealthSummary["fitnessScore"] 
 export async function buildHealthSummary(opts: { days?: number; targetWatts?: number } = {}): Promise<HealthSummary> {
   const days = opts.days ?? 30;
   const targetWatts = opts.targetWatts ?? defaultTargetWatts();
-  const cacheKey = `summary:v2:${days}:${targetWatts}`;
+  const cacheKey = `summary:v3:${days}:${targetWatts}`;
   const cached = await cacheGet<HealthSummary>(cacheKey);
   if (cached) return cached;
 
@@ -195,6 +195,7 @@ export async function buildHealthSummary(opts: { days?: number; targetWatts?: nu
         date: a.start_date_local.slice(0, 10),
         hr: avgHR,
         watts: targetWatts,
+        type: a.sport_type ?? a.type,
       });
     }
   }
