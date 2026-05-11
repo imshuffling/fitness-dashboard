@@ -123,10 +123,8 @@ export default async function GarminDashboardPage() {
               <h1 className="text-xl sm:text-2xl font-semibold truncate leading-tight">
                 Garmin Health
               </h1>
-              <p className="mt-0.5 text-[11px] sm:text-xs text-neutral-400 flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                <span>{dash.date}</span>
-                <span className="text-neutral-700">·</span>
-                <span>Cloned from Garmin Connect</span>
+              <p className="mt-0.5 text-[11px] sm:text-xs text-neutral-400">
+                {dash.date}
               </p>
             </div>
           </div>
