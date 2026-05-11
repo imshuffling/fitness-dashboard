@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import type { ActivitySummary } from "@/lib/health";
 
 export default function ZwiftRidesTable({ rides }: { rides: ActivitySummary[] }) {
@@ -44,7 +45,11 @@ export default function ZwiftRidesTable({ rides }: { rides: ActivitySummary[] })
               <td className="py-2 pr-3 text-neutral-400 whitespace-nowrap">
                 {r.date.slice(0, 10)}
               </td>
-              <td className="py-2 pr-3 text-neutral-100 truncate max-w-[260px]">{r.name}</td>
+              <td className="py-2 pr-3 text-neutral-100 truncate max-w-[260px]">
+                <Link href={`/rides/${r.id}`} className="hover:text-orange-400 transition">
+                  {r.name}
+                </Link>
+              </td>
               <td className="py-2 pr-3 text-right text-neutral-200 tabular-nums">{r.durationMin}m</td>
               <td className="py-2 pr-3 text-right text-neutral-200 tabular-nums">
                 {r.distanceKm.toFixed(1)}

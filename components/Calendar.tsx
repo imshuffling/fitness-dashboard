@@ -306,14 +306,22 @@ function ActivityModal({ activity, onClose }: { activity: Activity; onClose: () 
               <ZoneBreakdown zones={activity.zones} />
             </div>
           )}
-        <a
-          href={`https://www.strava.com/activities/${activity.id}`}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-4 inline-block text-xs text-orange-400 hover:text-orange-300"
-        >
-          Open on Strava ↗
-        </a>
+        <div className="mt-4 flex gap-4">
+          <a
+            href={`/rides/${activity.id}`}
+            className="text-xs text-orange-400 hover:text-orange-300"
+          >
+            Open detail →
+          </a>
+          <a
+            href={`https://www.strava.com/activities/${activity.id}`}
+            target="_blank"
+            rel="noreferrer"
+            className="text-xs text-neutral-400 hover:text-neutral-200"
+          >
+            Open on Strava ↗
+          </a>
+        </div>
       </div>
     </div>
   );

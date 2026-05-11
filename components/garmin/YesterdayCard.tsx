@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import {
   BikeIcon,
   BodyBatteryIcon,
@@ -39,7 +40,10 @@ export default function YesterdayCard({
   return (
     <div className="space-y-3">
       {activity && (
-        <div className="overflow-hidden rounded-xl bg-neutral-800/60">
+        <Link
+          href={`/rides/${activity.id}`}
+          className="block overflow-hidden rounded-xl bg-neutral-800/60 hover:bg-neutral-800/80 transition"
+        >
           {activity.photoUrl && (
             <div className="relative h-40 w-full">
               <Image
@@ -68,7 +72,7 @@ export default function YesterdayCard({
               </p>
             </div>
           </div>
-        </div>
+        </Link>
       )}
 
       <div className="rounded-xl bg-neutral-800/40 px-4 divide-y divide-neutral-800">
