@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Calendar from "@/components/Calendar";
 import HeaderMenu from "@/components/HeaderMenu";
+import RecentActivityCard from "@/components/RecentActivityCard";
 import TrainingLoadChart from "@/components/TrainingLoadChart";
 import Card from "@/components/garmin/Card";
 import HRVStatusCard from "@/components/garmin/HRVStatusCard";
@@ -108,6 +109,7 @@ export default async function Home() {
     return parseTrainingDay(a.date) >= sevenDaysAgo && a.type.toLowerCase().includes("ride");
   });
   const last7DaysRideKm = last7DaysRides.reduce((s, a) => s + a.distanceKm, 0);
+  const mostRecentActivity = summary.recentActivities[0] ?? null;
 
   return (
     <main className="min-h-screen bg-black text-neutral-100 p-3 sm:p-8">
@@ -123,6 +125,13 @@ export default async function Home() {
           </div>
           <HeaderMenu />
         </header>
+
+        {mostRecentActivity && (
+          <section className="space-y-3">
+            <h2 className="text-2xl font-semibold px-1">Latest Activity</h2>
+            <RecentActivityCard activity={mostRecentActivity} />
+          </section>
+        )}
 
         {garminLinked && garminDash && (
           <>
