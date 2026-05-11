@@ -114,18 +114,25 @@ export default async function GarminDashboardPage() {
   return (
     <main className="min-h-screen bg-neutral-950 text-neutral-100 p-3 sm:p-10">
       <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
-        <header className="flex flex-wrap items-end justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="text-2xl sm:text-3xl font-semibold truncate">
-              Garmin Health · {dash.date}
-            </h1>
-            <p className="text-neutral-500 text-xs sm:text-sm">
-              Cloned from Garmin Connect (unofficial)
-            </p>
+        <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-neutral-800/80 bg-gradient-to-br from-neutral-900/80 via-neutral-900/40 to-transparent px-4 py-3 sm:px-5 sm:py-4">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+            <div className="flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-neutral-800 text-2xl ring-2 ring-orange-500/40">
+              ⌚
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl font-semibold truncate leading-tight">
+                Garmin Health
+              </h1>
+              <p className="mt-0.5 text-[11px] sm:text-xs text-neutral-400 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                <span>{dash.date}</span>
+                <span className="text-neutral-700">·</span>
+                <span>Cloned from Garmin Connect</span>
+              </p>
+            </div>
           </div>
           <Link
             href="/"
-            className="inline-flex items-center gap-1.5 rounded-full border border-neutral-800 bg-neutral-900/60 px-3 py-1.5 text-xs text-neutral-300 hover:bg-neutral-800 hover:text-neutral-100 transition"
+            className="inline-flex items-center gap-1.5 rounded-full border border-neutral-800 bg-neutral-900/60 px-3 py-1.5 text-xs text-neutral-300 hover:bg-neutral-800 hover:text-neutral-100 transition shrink-0"
           >
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
               <path

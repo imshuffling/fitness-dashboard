@@ -9,6 +9,33 @@ import { isConnected } from "@/lib/tokens";
 
 export const dynamic = "force-dynamic";
 
+const TYPE_ICONS: Record<string, string> = {
+  Ride: "🚴",
+  VirtualRide: "🚴",
+  EBikeRide: "🚴",
+  Velomobile: "🚴",
+  Run: "🏃",
+  TrailRun: "🏃",
+  VirtualRun: "🏃",
+  Walk: "🚶",
+  Hike: "🥾",
+  WeightTraining: "🏋️",
+  Workout: "💪",
+  Yoga: "🧘",
+  Swim: "🏊",
+  Rowing: "🚣",
+};
+
+function formatRideDate(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 function Stat({
   label,
   value,
@@ -78,14 +105,23 @@ export default async function RidePage({ params }: { params: Promise<{ id: strin
   return (
     <main className="min-h-screen bg-neutral-950 text-neutral-100 p-3 sm:p-10">
       <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
-        <header className="flex flex-wrap items-end justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="text-2xl sm:text-3xl font-semibold truncate">{ride.name}</h1>
-            <p className="text-neutral-500 text-xs sm:text-sm">
-              {ride.type} · {ride.date.slice(0, 10)}
-            </p>
+        <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-neutral-800/80 bg-gradient-to-br from-neutral-900/80 via-neutral-900/40 to-transparent px-4 py-3 sm:px-5 sm:py-4">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+            <div className="flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-neutral-800 text-2xl ring-2 ring-orange-500/40">
+              {TYPE_ICONS[ride.type] ?? "•"}
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl font-semibold truncate leading-tight">
+                {ride.name}
+              </h1>
+              <p className="mt-0.5 text-[11px] sm:text-xs text-neutral-400 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                <span>{ride.type}</span>
+                <span className="text-neutral-700">·</span>
+                <span>{formatRideDate(ride.date)}</span>
+              </p>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <a
               href={`https://www.strava.com/activities/${ride.id}`}
               target="_blank"
