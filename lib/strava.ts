@@ -31,7 +31,28 @@ export type StravaPhoto = {
   urls: Record<string, string>;
   caption?: string | null;
   created_at?: string;
+  // 1 = photo, 2 = video
+  media_type?: number;
+  video_url?: string;
+  // some payloads carry size-keyed video URLs analogous to `urls`
+  video_urls?: Record<string, string>;
 };
+
+export function isVideoPhoto(p: StravaPhoto): boolean {
+  return p.media_type === 2 || Boolean(p.video_url) || Boolean(p.video_urls);
+}
+
+export function videoSrc(p: StravaPhoto): string | null {
+  if (p.video_url) return p.video_url;
+  const map = p.video_urls;
+  if (!map) return null;
+  const sizes = Object.keys(map)
+    .map((k) => parseInt(k, 10))
+    .filter((n) => Number.isFinite(n))
+    .sort((a, b) => b - a);
+  const key = sizes[0]?.toString() ?? Object.keys(map)[0];
+  return key ? map[key] ?? null : null;
+}
 
 export type StravaAthlete = {
   id: number;

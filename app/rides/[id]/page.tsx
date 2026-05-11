@@ -143,7 +143,7 @@ export default async function RidePage({ params }: { params: Promise<{ id: strin
 
         <section className="rounded-xl bg-neutral-900 border border-neutral-800 p-3 sm:p-5">
           <div className="flex items-baseline justify-between mb-3">
-            <h3 className="text-sm uppercase tracking-wider text-neutral-500">Photos</h3>
+            <h3 className="text-sm uppercase tracking-wider text-neutral-500">Media</h3>
             <span className="text-[11px] text-neutral-500">{ride.photos.length}</span>
           </div>
           <PhotoGallery photos={ride.photos} />

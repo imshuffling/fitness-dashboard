@@ -4,6 +4,7 @@ import {
   getActivityPhotos,
   getActivityStreams,
   getAthleteProfile,
+  isVideoPhoto,
   type StravaActivity,
 } from "./strava";
 import {
@@ -158,21 +159,24 @@ async function fetchActivityMedia(a: StravaActivity): Promise<ActivityMedia> {
   const count = a.total_photo_count ?? a.photo_count ?? 0;
   if (count <= 0) return { photoUrl: null, photoCount: 0 };
 
-  const cacheKey = `photos:v1:${a.id}`;
+  const cacheKey = `photos:v2:${a.id}`;
   const cached = await cacheGet<ActivityMedia>(cacheKey);
   if (cached) return cached;
 
   let result: ActivityMedia = { photoUrl: null, photoCount: count };
   try {
     const photos = await getActivityPhotos(a.id, 1024);
-    const first = photos[0];
-    if (first) {
-      const sizes = Object.keys(first.urls)
+    const stillImage = photos.find((p) => !isVideoPhoto(p)) ?? photos[0];
+    if (stillImage) {
+      const sizes = Object.keys(stillImage.urls)
         .map((k) => parseInt(k, 10))
         .filter((n) => Number.isFinite(n))
         .sort((x, y) => y - x);
-      const key = sizes[0]?.toString() ?? Object.keys(first.urls)[0];
-      result = { photoUrl: key ? first.urls[key] ?? null : null, photoCount: photos.length };
+      const key = sizes[0]?.toString() ?? Object.keys(stillImage.urls)[0];
+      result = {
+        photoUrl: key ? stillImage.urls[key] ?? null : null,
+        photoCount: photos.length,
+      };
     }
   } catch {
     // photo fetch failed — leave nulls
