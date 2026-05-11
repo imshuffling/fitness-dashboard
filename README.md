@@ -74,10 +74,10 @@ For non-standard zone bands (e.g. Coggan, lactate-tested) edit
 
 | Tool | Args | Purpose |
 |---|---|---|
-| `get_fitness_summary` | `days?`, `watts?` | Weekly volume, Z2 adherence, HR-at-power trend, recent activities, fitness trajectory |
-| `get_recent_rides` | `limit?`, `days?` | Recent activities with HR/power/Z2% |
+| `get_fitness_summary` | `days?`, `watts?` | All-sport weekly volume + Z2 adherence, HR-at-power trend, recent activities, fitness trajectory. Weekly buckets include `activities`, `rides` (cycling-only), and `byType` |
+| `get_recent_activities` | `limit?`, `days?` | Recent activities (any sport) with HR/power/Z2% and `type` field |
 | `get_hr_at_power_trend` | `watts`, `days?` | HR samples filtered to a target wattage over time |
-| `get_zone2_trend` | `weeks?` | Weekly zone 2 minutes and percentage |
+| `get_zone2_trend` | `weeks?` | Weekly zone 2 minutes / percentage across all sports |
 | `get_garmin_wellness` | — | Last 7 days of sleep, RHR, steps |
 | `get_training_load` | `days?` | Intervals.icu CTL/ATL/TSB ramp |
 

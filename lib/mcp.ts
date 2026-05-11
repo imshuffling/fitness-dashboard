@@ -25,7 +25,7 @@ export function createMcpServer(): McpServer {
     {
       title: "Get fitness summary",
       description:
-        "Aggregated fitness summary: this-week volume, zone 2 adherence, HR-at-power trend, recent activities, and an overall fitness trajectory (improving/stable/declining).",
+        "Aggregated fitness summary across all sports. `thisWeek.activities` = total sessions, `thisWeek.rides` = cycling-only count. `weekly[]` buckets include `activities`, `rides`, and a `byType` breakdown keyed by Strava sport_type. Also returns HR-at-power trend, recent activities, and overall fitness trajectory (improving/stable/declining).",
       inputSchema: {
         days: z
           .number()
@@ -50,11 +50,11 @@ export function createMcpServer(): McpServer {
   );
 
   server.registerTool(
-    "get_recent_rides",
+    "get_recent_activities",
     {
-      title: "Get recent rides",
+      title: "Get recent activities",
       description:
-        "List of recent activities with HR, power, duration, and zone 2 percentage.",
+        "List of recent activities (any sport — rides, runs, gym, walks, etc.) with HR, power, duration, and zone 2 percentage. Each entry has a `type` field (Strava sport_type, e.g. VirtualRide, Ride, Run, Walk, Workout, WeightTraining) — filter on that if you only want cycling.",
       inputSchema: {
         limit: z
           .number()
@@ -74,8 +74,8 @@ export function createMcpServer(): McpServer {
     },
     async ({ limit, days }) => {
       const summary = await buildHealthSummary({ days: days ?? 30 });
-      const rides = summary.recentActivities.slice(0, limit ?? 10);
-      return { content: [{ type: "text", text: JSON.stringify(rides, null, 2) }] };
+      const activities = summary.recentActivities.slice(0, limit ?? 10);
+      return { content: [{ type: "text", text: JSON.stringify(activities, null, 2) }] };
     }
   );
 
@@ -107,7 +107,7 @@ export function createMcpServer(): McpServer {
     {
       title: "Get zone 2 weekly trend",
       description:
-        "Weekly zone 2 minutes and percentage of total ride time, useful for tracking aerobic base adherence.",
+        "Weekly zone 2 minutes and percentage of total training time (all sports), useful for tracking aerobic base adherence. Each bucket also includes `activities`, `rides` (cycling-only), and a `byType` breakdown.",
       inputSchema: {
         weeks: z
           .number()

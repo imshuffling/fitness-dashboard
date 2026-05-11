@@ -44,7 +44,9 @@ export type WeekBucket = {
   totalMin: number;
   zone2Min: number;
   pct: number;
+  activities: number;
   rides: number;
+  byType: Record<string, number>;
 };
 
 export type HRAtPowerPoint = { date: string; hr: number; watts: number };
@@ -68,7 +70,7 @@ export type HealthSummary = {
 const CYCLING_TYPES = new Set(["Ride", "VirtualRide", "EBikeRide", "Velomobile"]);
 
 export async function clearSummaryCache(): Promise<number> {
-  const patterns = ["summary:v1:*", "intervals:load:*", "garmin:week:*", "garmin:dash:*"];
+  const patterns = ["summary:v1:*", "summary:v2:*", "intervals:load:*", "garmin:week:*", "garmin:dash:*"];
   let deleted = 0;
   for (const pattern of patterns) {
     deleted += await cacheScanDelete(pattern);
@@ -141,10 +143,20 @@ function bucketByWeek(activities: ActivitySummary[]): WeekBucket[] {
     const ws = formatTrainingDay(weekStart(parseTrainingDay(a.date)));
     const cur =
       map.get(ws) ??
-      ({ weekStart: ws, totalMin: 0, zone2Min: 0, pct: 0, rides: 0 } as WeekBucket);
+      ({
+        weekStart: ws,
+        totalMin: 0,
+        zone2Min: 0,
+        pct: 0,
+        activities: 0,
+        rides: 0,
+        byType: {},
+      } as WeekBucket);
     cur.totalMin += a.durationMin;
     if (a.zones) cur.zone2Min += Math.round(a.zones.zone2 / 60);
-    cur.rides += 1;
+    cur.activities += 1;
+    if (CYCLING_TYPES.has(a.type)) cur.rides += 1;
+    cur.byType[a.type] = (cur.byType[a.type] ?? 0) + 1;
     map.set(ws, cur);
   }
   return Array.from(map.values())
@@ -166,7 +178,7 @@ function classifyTrend(points: HRAtPowerPoint[]): HealthSummary["fitnessScore"] 
 export async function buildHealthSummary(opts: { days?: number; targetWatts?: number } = {}): Promise<HealthSummary> {
   const days = opts.days ?? 30;
   const targetWatts = opts.targetWatts ?? defaultTargetWatts();
-  const cacheKey = `summary:v1:${days}:${targetWatts}`;
+  const cacheKey = `summary:v2:${days}:${targetWatts}`;
   const cached = await cacheGet<HealthSummary>(cacheKey);
   if (cached) return cached;
 
