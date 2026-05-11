@@ -31,7 +31,14 @@ function Stat({
   );
 }
 
-export default async function RidePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function RidePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
+  const { raw } = await searchParams;
   if (!(await isConnected())) {
     return (
       <main className="min-h-screen flex items-center justify-center p-8 bg-black text-neutral-100">
@@ -147,6 +154,11 @@ export default async function RidePage({ params }: { params: Promise<{ id: strin
             <span className="text-[11px] text-neutral-500">{ride.photos.length}</span>
           </div>
           <PhotoGallery photos={ride.photos} />
+          {raw && (
+            <pre className="mt-4 overflow-x-auto rounded-lg bg-neutral-950 p-3 text-[11px] text-neutral-300">
+              {JSON.stringify(ride.photos, null, 2)}
+            </pre>
+          )}
         </section>
       </div>
     </main>
