@@ -26,12 +26,6 @@ export default function VideoPlayer({
       return;
     }
 
-    if (video.canPlayType("application/vnd.apple.mpegurl")) {
-      video.src = src;
-      setStatus("native-hls");
-      return;
-    }
-
     let hls: import("hls.js").default | null = null;
     let cancelled = false;
 
@@ -39,19 +33,23 @@ export default function VideoPlayer({
     import("hls.js")
       .then(({ default: Hls }) => {
         if (cancelled) return;
-        if (!Hls.isSupported()) {
-          setStatus("hls-unsupported");
-          video.src = src;
+        if (Hls.isSupported()) {
+          hls = new Hls();
+          hls.on(Hls.Events.ERROR, (_e, data) => {
+            setErr(`${data.type}/${data.details}`);
+          });
+          hls.on(Hls.Events.MANIFEST_PARSED, () => setStatus("ready"));
+          hls.loadSource(src);
+          hls.attachMedia(video);
+          setStatus("attached");
           return;
         }
-        hls = new Hls();
-        hls.on(Hls.Events.ERROR, (_e, data) => {
-          setErr(`${data.type}/${data.details}`);
-        });
-        hls.on(Hls.Events.MANIFEST_PARSED, () => setStatus("ready"));
-        hls.loadSource(src);
-        hls.attachMedia(video);
-        setStatus("attached");
+        if (video.canPlayType("application/vnd.apple.mpegurl")) {
+          video.src = src;
+          setStatus("native-hls");
+          return;
+        }
+        setStatus("hls-unsupported");
       })
       .catch((e) => {
         setErr(`import failed: ${(e as Error).message}`);
