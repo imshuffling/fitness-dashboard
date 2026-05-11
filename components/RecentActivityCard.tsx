@@ -36,13 +36,18 @@ export default function RecentActivityCard({ activity }: { activity: ActivitySum
   const href = `/rides/${activity.id}`;
 
   const media = activity.videoUrl ? (
-    <VideoPlayer
-      src={activity.videoUrl}
-      poster={activity.photoUrl ?? undefined}
-      className="h-44 w-full md:h-full md:w-64 md:shrink-0 object-cover bg-neutral-800"
-    />
+    <div className="h-44 w-full md:h-auto md:w-64 md:shrink-0 md:self-stretch bg-neutral-800">
+      <VideoPlayer
+        src={activity.videoUrl}
+        poster={activity.photoUrl ?? undefined}
+        className="h-full w-full object-cover"
+      />
+    </div>
   ) : activity.photoUrl ? (
-    <Link href={href} className="relative h-44 w-full md:h-auto md:w-64 md:shrink-0 block">
+    <Link
+      href={href}
+      className="relative h-44 w-full md:h-auto md:w-64 md:shrink-0 md:self-stretch block"
+    >
       <Image
         src={activity.photoUrl}
         alt=""
@@ -54,7 +59,7 @@ export default function RecentActivityCard({ activity }: { activity: ActivitySum
   ) : (
     <Link
       href={href}
-      className="flex h-44 w-full items-center justify-center bg-neutral-800/60 text-4xl md:h-auto md:w-64 md:shrink-0"
+      className="flex h-44 w-full items-center justify-center bg-neutral-800/60 text-4xl md:h-auto md:w-64 md:shrink-0 md:self-stretch"
     >
       {icon}
     </Link>
