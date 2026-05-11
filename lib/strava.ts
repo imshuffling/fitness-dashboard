@@ -51,6 +51,7 @@ export type StravaAthlete = {
   lastname: string;
   weight?: number;
   profile?: string;
+  profile_medium?: string;
 };
 
 export type StreamSet = {

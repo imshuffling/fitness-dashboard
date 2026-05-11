@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import Calendar from "@/components/Calendar";
 import HeaderMenu from "@/components/HeaderMenu";
@@ -114,14 +115,43 @@ export default async function Home() {
   return (
     <main className="min-h-screen bg-black text-neutral-100 p-3 sm:p-8">
       <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
-        <header className="flex items-center justify-between gap-4 px-1">
-          <div className="min-w-0">
-            <h1 className="text-xl sm:text-2xl font-semibold truncate">
-              {summary.athlete.name || "Athlete"}
-            </h1>
-            <p className="text-neutral-500 text-[11px] sm:text-xs">
-              Updated {new Date(summary.generatedAt).toLocaleTimeString()}
-            </p>
+        <header className="flex items-center justify-between gap-4 rounded-2xl border border-neutral-800/80 bg-gradient-to-br from-neutral-900/80 via-neutral-900/40 to-transparent px-4 py-3 sm:px-5 sm:py-4">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+            {summary.athlete.avatar ? (
+              <Image
+                src={summary.athlete.avatar}
+                alt=""
+                width={48}
+                height={48}
+                className="h-11 w-11 sm:h-12 sm:w-12 rounded-full object-cover ring-2 ring-orange-500/40"
+              />
+            ) : (
+              <div className="h-11 w-11 sm:h-12 sm:w-12 rounded-full bg-neutral-800 ring-2 ring-orange-500/40" />
+            )}
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl font-semibold truncate leading-tight">
+                {summary.athlete.name || "Athlete"}
+              </h1>
+              <p className="mt-0.5 text-[11px] sm:text-xs text-neutral-400 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                <span className="tabular-nums">
+                  {summary.thisWeek.activities} this week
+                </span>
+                <span className="text-neutral-700">·</span>
+                <span className="tabular-nums">
+                  {Math.floor(summary.thisWeek.totalMinutes / 60)}h{" "}
+                  {summary.thisWeek.totalMinutes % 60}m
+                </span>
+                <span className="text-neutral-700">·</span>
+                <span className="tabular-nums">Z2 {summary.thisWeek.zone2Pct}%</span>
+                <span className="text-neutral-700 hidden sm:inline">·</span>
+                <span className="text-neutral-500 hidden sm:inline">
+                  {new Date(summary.generatedAt).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
+              </p>
+            </div>
           </div>
           <HeaderMenu />
         </header>
