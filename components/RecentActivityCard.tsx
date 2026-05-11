@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import VideoPlayer from "@/components/rides/VideoPlayer";
 import type { ActivitySummary } from "@/lib/health";
 
 const TYPE_ICONS: Record<string, string> = {
@@ -32,40 +33,46 @@ export default function RecentActivityCard({ activity }: { activity: ActivitySum
   const hours = Math.floor(activity.durationMin / 60);
   const mins = activity.durationMin % 60;
   const icon = TYPE_ICONS[activity.type] ?? "•";
+  const href = `/rides/${activity.id}`;
+
+  const media = activity.videoUrl ? (
+    <VideoPlayer
+      src={activity.videoUrl}
+      poster={activity.photoUrl ?? undefined}
+      className="h-44 w-full md:h-full md:w-64 md:shrink-0 object-cover bg-neutral-800"
+    />
+  ) : activity.photoUrl ? (
+    <Link href={href} className="relative h-44 w-full md:h-auto md:w-64 md:shrink-0 block">
+      <Image
+        src={activity.photoUrl}
+        alt=""
+        fill
+        sizes="(max-width: 768px) 100vw, 256px"
+        className="object-cover"
+      />
+    </Link>
+  ) : (
+    <Link
+      href={href}
+      className="flex h-44 w-full items-center justify-center bg-neutral-800/60 text-4xl md:h-auto md:w-64 md:shrink-0"
+    >
+      {icon}
+    </Link>
+  );
 
   return (
-    <Link
-      href={`/rides/${activity.id}`}
-      className="block overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900/60 hover:bg-neutral-900 transition"
-    >
+    <div className="overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900/60">
       <div className="flex flex-col md:flex-row">
-        {activity.photoUrl ? (
-          <div className="relative h-44 w-full md:h-auto md:w-64 md:shrink-0">
-            <Image
-              src={activity.photoUrl}
-              alt=""
-              fill
-              sizes="(max-width: 768px) 100vw, 256px"
-              className="object-cover"
-            />
-          </div>
-        ) : (
-          <div className="flex h-44 w-full items-center justify-center bg-neutral-800/60 text-4xl md:h-auto md:w-64 md:shrink-0">
-            {icon}
-          </div>
-        )}
+        {media}
 
-        <div className="flex-1 p-4 sm:p-5 min-w-0">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-[11px] uppercase tracking-wider text-neutral-500">
-                {activity.type} · {formatDate(activity.date)}
-              </p>
-              <h3 className="mt-1 text-lg sm:text-xl font-semibold truncate">
-                {activity.name}
-              </h3>
-            </div>
-          </div>
+        <Link
+          href={href}
+          className="flex-1 p-4 sm:p-5 min-w-0 hover:bg-neutral-900 transition"
+        >
+          <p className="text-[11px] uppercase tracking-wider text-neutral-500">
+            {activity.type} · {formatDate(activity.date)}
+          </p>
+          <h3 className="mt-1 text-lg sm:text-xl font-semibold truncate">{activity.name}</h3>
 
           <dl className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
             <Stat label="Duration" value={hours > 0 ? `${hours}h ${mins}m` : `${mins}m`} />
@@ -80,9 +87,9 @@ export default function RecentActivityCard({ activity }: { activity: ActivitySum
             )}
             {activity.zone2Pct !== null && <Stat label="Zone 2" value={`${activity.zone2Pct}%`} />}
           </dl>
-        </div>
+        </Link>
       </div>
-    </Link>
+    </div>
   );
 }
 

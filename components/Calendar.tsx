@@ -268,7 +268,7 @@ function ActivityModal({ activity, onClose }: { activity: Activity; onClose: () 
           <div>
             <h3 className="text-lg font-semibold">{activity.name}</h3>
             <p className="text-xs text-neutral-500">
-              {format(parseISO(activity.date), "EEEE d MMM yyyy, HH:mm")} · {activity.type}
+              {format(parseISO(activity.date), "EEEE d MMM yyyy")} · {activity.type}
             </p>
           </div>
           <button

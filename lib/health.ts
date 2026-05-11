@@ -5,6 +5,7 @@ import {
   getActivityStreams,
   getAthleteProfile,
   isVideoPhoto,
+  videoSrc,
   type StravaActivity,
 } from "./strava";
 import {
@@ -40,6 +41,7 @@ export type ActivitySummary = {
   zone2Pct: number | null;
   zones: ZoneSeconds | null;
   photoUrl: string | null;
+  videoUrl: string | null;
   photoCount: number;
 };
 
@@ -74,7 +76,7 @@ export type HealthSummary = {
 const CYCLING_TYPES = new Set(["Ride", "VirtualRide", "EBikeRide", "Velomobile"]);
 
 export async function clearSummaryCache(): Promise<number> {
-  const patterns = ["summary:v1:*", "summary:v2:*", "summary:v3:*", "summary:v4:*", "intervals:load:*", "garmin:week:*", "garmin:dash:*"];
+  const patterns = ["summary:v1:*", "summary:v2:*", "summary:v3:*", "summary:v4:*", "summary:v5:*", "intervals:load:*", "garmin:week:*", "garmin:dash:*"];
   let deleted = 0;
   for (const pattern of patterns) {
     deleted += await cacheScanDelete(pattern);
@@ -143,11 +145,16 @@ function summariseActivity(
     zone2Pct: zones ? Math.round((zones.zone2 / Math.max(1, totalSeconds(zones))) * 100) : null,
     zones,
     photoUrl: media.photoUrl,
+    videoUrl: media.videoUrl,
     photoCount: media.photoCount,
   };
 }
 
-type ActivityMedia = { photoUrl: string | null; photoCount: number };
+type ActivityMedia = {
+  photoUrl: string | null;
+  videoUrl: string | null;
+  photoCount: number;
+};
 
 /**
  * Resolve the activity's primary photo URL, if any. Strava's
@@ -157,27 +164,28 @@ type ActivityMedia = { photoUrl: string | null; photoCount: number };
  */
 async function fetchActivityMedia(a: StravaActivity): Promise<ActivityMedia> {
   const count = a.total_photo_count ?? a.photo_count ?? 0;
-  if (count <= 0) return { photoUrl: null, photoCount: 0 };
+  if (count <= 0) return { photoUrl: null, videoUrl: null, photoCount: 0 };
 
-  const cacheKey = `photos:v2:${a.id}`;
+  const cacheKey = `photos:v3:${a.id}`;
   const cached = await cacheGet<ActivityMedia>(cacheKey);
   if (cached) return cached;
 
-  let result: ActivityMedia = { photoUrl: null, photoCount: count };
+  let result: ActivityMedia = { photoUrl: null, videoUrl: null, photoCount: count };
   try {
     const photos = await getActivityPhotos(a.id, 1024);
     const stillImage = photos.find((p) => !isVideoPhoto(p)) ?? photos[0];
+    let photoUrl: string | null = null;
     if (stillImage) {
       const sizes = Object.keys(stillImage.urls)
         .map((k) => parseInt(k, 10))
         .filter((n) => Number.isFinite(n))
         .sort((x, y) => y - x);
       const key = sizes[0]?.toString() ?? Object.keys(stillImage.urls)[0];
-      result = {
-        photoUrl: key ? stillImage.urls[key] ?? null : null,
-        photoCount: photos.length,
-      };
+      photoUrl = key ? stillImage.urls[key] ?? null : null;
     }
+    const videoItem = photos.find((p) => isVideoPhoto(p));
+    const videoUrl = videoItem ? videoSrc(videoItem) : null;
+    result = { photoUrl, videoUrl, photoCount: photos.length };
   } catch {
     // photo fetch failed — leave nulls
   }
@@ -227,7 +235,7 @@ function classifyTrend(points: HRAtPowerPoint[]): HealthSummary["fitnessScore"] 
 export async function buildHealthSummary(opts: { days?: number; targetWatts?: number } = {}): Promise<HealthSummary> {
   const days = opts.days ?? 30;
   const targetWatts = opts.targetWatts ?? defaultTargetWatts();
-  const cacheKey = `summary:v4:${days}:${targetWatts}`;
+  const cacheKey = `summary:v5:${days}:${targetWatts}`;
   const cached = await cacheGet<HealthSummary>(cacheKey);
   if (cached) return cached;
 
