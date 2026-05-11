@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { isVideoPhoto, videoSrc, type StravaPhoto } from "@/lib/strava";
+import VideoPlayer from "./VideoPlayer";
 
 function pickLargestUrl(urls: Record<string, string>): string | null {
   const sizes = Object.keys(urls)
@@ -49,13 +50,10 @@ export default function PhotoGallery({ photos }: { photos: StravaPhoto[] }) {
             );
           }
           return (
-            <video
+            <VideoPlayer
               key={key}
               src={src}
               poster={poster ?? undefined}
-              controls
-              preload="metadata"
-              playsInline
               className="aspect-square w-full rounded-lg bg-neutral-800 object-cover"
             />
           );
