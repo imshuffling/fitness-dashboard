@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Area,
   CartesianGrid,
@@ -17,8 +17,24 @@ import {
 type Point = { date: string; ctl: number; atl: number; tsb: number };
 
 export default function TrainingLoadChart({ points }: { points: Point[] }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setVisible(true);
+          obs.disconnect();
+        }
+      },
+      { rootMargin: "200px" },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
 
   if (points.length === 0) {
     return (
@@ -27,9 +43,9 @@ export default function TrainingLoadChart({ points }: { points: Point[] }) {
       </div>
     );
   }
-  if (!mounted) return <div className="h-72" />;
+  if (!visible) return <div ref={containerRef} className="h-72" />;
   return (
-    <div className="h-72 w-full">
+    <div ref={containerRef} className="h-72 w-full">
       <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
         <ComposedChart data={points} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
           <CartesianGrid stroke="#1f1f1f" strokeDasharray="3 3" />
