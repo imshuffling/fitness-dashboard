@@ -1,5 +1,10 @@
 import { cacheGet, cacheSet } from "./kv";
 import {
+  getIntervalsActivity,
+  isIntervalsConfigured,
+  type IntervalsActivityDetail,
+} from "./intervals";
+import {
   getActivityDetail,
   getActivityPhotos,
   getActivityStreams,
@@ -32,6 +37,7 @@ export type RideDetail = {
   polyline: [number, number][];
   powerCurve: PowerCurvePoint[];
   zones: ZoneSeconds | null;
+  intervals: IntervalsActivityDetail | null;
 };
 
 const POWER_DURATIONS = [5, 15, 30, 60, 120, 300, 600, 1200, 1800, 3600];
@@ -125,17 +131,20 @@ function detectPlatform(detail: StravaActivityDetail): VirtualPlatform | null {
 }
 
 export async function getRideDetail(id: number): Promise<RideDetail> {
-  const cacheKey = `ride:v3:${id}`;
+  const cacheKey = `ride:v4:${id}`;
   const cached = await cacheGet<RideDetail>(cacheKey);
   if (cached) return cached;
 
   const detail = (await getActivityDetail(id)) as StravaActivityDetail;
 
-  const [photos, streams] = await Promise.all([
+  const [photos, streams, intervals] = await Promise.all([
     (detail.total_photo_count ?? detail.photo_count ?? 0) > 0
       ? getActivityPhotos(id, 2048).catch(() => [] as StravaPhoto[])
       : Promise.resolve([] as StravaPhoto[]),
     getActivityStreams(id, ["heartrate", "watts", "time"]).catch(() => ({}) as StreamSet),
+    isIntervalsConfigured()
+      ? getIntervalsActivity(id).catch(() => null)
+      : Promise.resolve(null),
   ]);
 
   const hr = streams.heartrate?.data ?? [];
@@ -175,6 +184,7 @@ export async function getRideDetail(id: number): Promise<RideDetail> {
     polyline,
     powerCurve,
     zones,
+    intervals,
   };
 
   await cacheSet(cacheKey, result, 30 * 86400);

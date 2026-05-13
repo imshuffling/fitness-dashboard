@@ -174,6 +174,55 @@ export default async function RidePage({ params }: { params: Promise<{ id: strin
           <Stat label="Max HR" value={ride.maxHR} unit="bpm" />
         </section>
 
+        {ride.intervals && (
+          <section className="rounded-xl bg-neutral-900 border border-neutral-800 p-3 sm:p-5">
+            <div className="flex items-baseline justify-between mb-3">
+              <h3 className="text-sm uppercase tracking-wider text-neutral-500">intervals.icu</h3>
+              <a
+                href={`https://intervals.icu/activities/i${ride.id}`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-[11px] text-neutral-500 hover:text-neutral-300"
+              >
+                Open ↗
+              </a>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <Stat label="Load" value={ride.intervals.load} />
+              <Stat
+                label="Intensity"
+                value={ride.intervals.intensity != null ? ride.intervals.intensity.toFixed(2) : null}
+              />
+              <Stat
+                label="EF"
+                value={
+                  ride.intervals.efficiencyFactor != null
+                    ? ride.intervals.efficiencyFactor.toFixed(2)
+                    : null
+                }
+              />
+              <Stat
+                label="Decoupling"
+                value={
+                  ride.intervals.decoupling != null ? ride.intervals.decoupling.toFixed(1) : null
+                }
+                unit="%"
+              />
+              <Stat
+                label="VI"
+                value={
+                  ride.intervals.variabilityIndex != null
+                    ? ride.intervals.variabilityIndex.toFixed(2)
+                    : null
+                }
+              />
+              <Stat label="eFTP" value={ride.intervals.eftp} unit="W" />
+              <Stat label="FTP" value={ride.intervals.ftpAt} unit="W" />
+              <Stat label="Recovery" value={ride.intervals.recoveryTime} unit="h" />
+            </div>
+          </section>
+        )}
+
         <section className="rounded-xl bg-neutral-900 border border-neutral-800 p-3 sm:p-5">
           <div className="flex items-baseline justify-between mb-3">
             <h3 className="text-sm uppercase tracking-wider text-neutral-500">Route</h3>

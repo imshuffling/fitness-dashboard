@@ -122,3 +122,40 @@ export async function getTrainingLoadTrend(days = 90): Promise<LoadPoint[]> {
 export function isIntervalsConfigured(): boolean {
   return Boolean(process.env.INTERVALS_ICU_API_KEY);
 }
+
+export type IntervalsActivityDetail = {
+  load: number | null;
+  intensity: number | null;
+  efficiencyFactor: number | null;
+  decoupling: number | null;
+  variabilityIndex: number | null;
+  eftp: number | null;
+  ftpAt: number | null;
+  recoveryTime: number | null;
+};
+
+export async function getIntervalsActivity(
+  stravaId: number,
+): Promise<IntervalsActivityDetail | null> {
+  try {
+    const raw = await icu<Record<string, unknown>>(
+      `/athlete/${athleteId()}/activity/i${stravaId}`,
+    );
+    const num = (k: string): number | null => {
+      const v = raw[k];
+      return typeof v === "number" && Number.isFinite(v) ? v : null;
+    };
+    return {
+      load: num("icu_training_load"),
+      intensity: num("icu_intensity"),
+      efficiencyFactor: num("icu_efficiency_factor"),
+      decoupling: num("icu_pa_hr"),
+      variabilityIndex: num("icu_variability_index"),
+      eftp: num("icu_eftp"),
+      ftpAt: num("icu_ftp"),
+      recoveryTime: num("icu_recovery_time"),
+    };
+  } catch {
+    return null;
+  }
+}
