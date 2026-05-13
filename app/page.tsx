@@ -1,11 +1,13 @@
 import { Suspense, cache } from "react";
+import nextDynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
-import Calendar from "@/components/Calendar";
 import HeaderMenu from "@/components/HeaderMenu";
 import RecentActivityCard from "@/components/RecentActivityCard";
-import TrainingLoadChart from "@/components/TrainingLoadChart";
 import Card from "@/components/garmin/Card";
+
+const Calendar = nextDynamic(() => import("@/components/Calendar"));
+const TrainingLoadChart = nextDynamic(() => import("@/components/TrainingLoadChart"));
 import HRVStatusCard from "@/components/garmin/HRVStatusCard";
 import Last7DaysCard from "@/components/garmin/Last7DaysCard";
 import SleepStagesChart from "@/components/garmin/SleepStagesChart";
@@ -28,7 +30,12 @@ import {
   TrainingLoadSkeleton,
   YesterdaySkeleton,
 } from "@/components/dashboard/Skeletons";
-import { buildHealthSummary, type HealthSummary } from "@/lib/health";
+import {
+  buildHealthSummary,
+  getLatestActivity,
+  type ActivitySummary,
+  type HealthSummary,
+} from "@/lib/health";
 import {
   getDailyTile,
   getHRTile,
@@ -119,6 +126,8 @@ async function HeaderSection() {
             alt=""
             width={48}
             height={48}
+            priority
+            fetchPriority="high"
             className="h-11 w-11 sm:h-12 sm:w-12 rounded-full object-cover ring-2 ring-orange-500/40"
           />
         ) : (
@@ -152,18 +161,17 @@ async function HeaderSection() {
 }
 
 async function LatestActivitySection() {
-  let summary: HealthSummary;
+  let activity: ActivitySummary | null;
   try {
-    summary = await getSummary();
+    activity = await getLatestActivity();
   } catch (e) {
     return <SummaryErrorCard error={(e as Error).message} />;
   }
-  const mostRecent = summary.recentActivities[0] ?? null;
-  if (!mostRecent) return null;
+  if (!activity) return null;
   return (
     <section className="space-y-3">
       <h2 className="text-2xl font-semibold px-1">Latest Activity</h2>
-      <RecentActivityCard activity={mostRecent} />
+      <RecentActivityCard activity={activity} />
     </section>
   );
 }

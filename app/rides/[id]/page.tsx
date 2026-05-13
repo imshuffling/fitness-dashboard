@@ -6,6 +6,7 @@ import PowerCurve from "@/components/rides/PowerCurve";
 import RideMap from "@/components/rides/RideMap";
 import { getRideDetail } from "@/lib/rides";
 import { isConnected } from "@/lib/tokens";
+import "maplibre-gl/dist/maplibre-gl.css";
 
 export const dynamic = "force-dynamic";
 

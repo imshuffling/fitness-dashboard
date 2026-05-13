@@ -4,6 +4,7 @@
 // know which one is in use.
 
 import { Redis } from "@upstash/redis";
+import { after } from "next/server";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
@@ -173,6 +174,53 @@ export async function cacheGetOrSet<T>(
   if (hit !== null) return hit;
   const value = await fn();
   await adapter().set(key, value, ttlSeconds);
+  return value;
+}
+
+type SwrEntry<T> = { v: T; freshUntil: number };
+
+function isSwrEntry<T>(x: unknown): x is SwrEntry<T> {
+  return !!x && typeof x === "object" && "freshUntil" in x && "v" in x;
+}
+
+function scheduleRefresh(fn: () => Promise<void>): void {
+  try {
+    after(fn);
+  } catch {
+    void fn();
+  }
+}
+
+/**
+ * Stale-while-revalidate: return cached value immediately if present, even if
+ * past the freshness window, and refresh in the background. Hard expiry =
+ * freshSeconds * graceMultiplier; after that, the next caller pays the fetch.
+ */
+export async function cacheGetOrSetSwr<T>(
+  key: string,
+  freshSeconds: number,
+  fn: () => Promise<T>,
+  graceMultiplier = 6,
+): Promise<T> {
+  const a = adapter();
+  const ttl = freshSeconds * graceMultiplier;
+  const hit = await a.get<unknown>(key);
+
+  if (isSwrEntry<T>(hit)) {
+    if (hit.freshUntil > Date.now()) return hit.v;
+    scheduleRefresh(async () => {
+      try {
+        const next = await fn();
+        await a.set(key, { v: next, freshUntil: Date.now() + freshSeconds * 1000 }, ttl);
+      } catch {
+        // background refresh failed — keep stale until next attempt
+      }
+    });
+    return hit.v;
+  }
+
+  const value = await fn();
+  await a.set(key, { v: value, freshUntil: Date.now() + freshSeconds * 1000 }, ttl);
   return value;
 }
 

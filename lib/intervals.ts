@@ -2,7 +2,7 @@
 // Auth: HTTP Basic with username "API_KEY" and password = the key from
 // https://intervals.icu/settings (API section).
 
-import { cacheGetOrSet } from "./kv";
+import { cacheGetOrSetSwr } from "./kv";
 import { daysAgo, formatTrainingDay, today } from "./trainingDay";
 
 const BASE = "https://intervals.icu/api/v1";
@@ -102,7 +102,7 @@ export async function getIntervalsActivities(opts: {
 export type LoadPoint = { date: string; ctl: number; atl: number; tsb: number };
 
 export async function getTrainingLoadTrend(days = 90): Promise<LoadPoint[]> {
-  return cacheGetOrSet(`intervals:load:${days}`, 30 * 60, async () => {
+  return cacheGetOrSetSwr(`intervals:load:v2:${days}`, 30 * 60, async () => {
     const wellness = await getIntervalsWellness({
       oldest: formatTrainingDay(daysAgo(days)),
       newest: formatTrainingDay(today()),

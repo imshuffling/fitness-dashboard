@@ -1,4 +1,4 @@
-import { cacheGet, cacheScanDelete, cacheSet } from "./kv";
+import { cacheGet, cacheGetOrSetSwr, cacheScanDelete, cacheSet } from "./kv";
 import {
   getActivities,
   getActivityPhotos,
@@ -76,7 +76,7 @@ export type HealthSummary = {
 const CYCLING_TYPES = new Set(["Ride", "VirtualRide", "EBikeRide", "Velomobile"]);
 
 export async function clearSummaryCache(): Promise<number> {
-  const patterns = ["summary:v1:*", "summary:v2:*", "summary:v3:*", "summary:v4:*", "summary:v5:*", "summary:v6:*", "intervals:load:*", "garmin:week:*", "garmin:dash:*"];
+  const patterns = ["summary:v1:*", "summary:v2:*", "summary:v3:*", "summary:v4:*", "summary:v5:*", "summary:v6:*", "summary:v7:*", "intervals:load:*", "garmin:week:*", "garmin:dash:*", "garmin:tile:*"];
   let deleted = 0;
   for (const pattern of patterns) {
     deleted += await cacheScanDelete(pattern);
@@ -235,10 +235,11 @@ function classifyTrend(points: HRAtPowerPoint[]): HealthSummary["fitnessScore"] 
 export async function buildHealthSummary(opts: { days?: number; targetWatts?: number } = {}): Promise<HealthSummary> {
   const days = opts.days ?? 30;
   const targetWatts = opts.targetWatts ?? defaultTargetWatts();
-  const cacheKey = `summary:v6:${days}:${targetWatts}`;
-  const cached = await cacheGet<HealthSummary>(cacheKey);
-  if (cached) return cached;
+  const cacheKey = `summary:v7:${days}:${targetWatts}`;
+  return cacheGetOrSetSwr(cacheKey, 15 * 60, () => buildHealthSummaryFresh(days, targetWatts));
+}
 
+async function buildHealthSummaryFresh(days: number, targetWatts: number): Promise<HealthSummary> {
   const [athlete, activities] = await Promise.all([getAthleteProfile(), getActivities({ days })]);
 
   const summaries: ActivitySummary[] = [];
@@ -292,8 +293,27 @@ export async function buildHealthSummary(opts: { days?: number; targetWatts?: nu
     generatedAt: new Date().toISOString(),
   };
 
-  await cacheSet(cacheKey, summary, 15 * 60);
   return summary;
+}
+
+/**
+ * Lightweight fetch of just the most-recent activity, enriched. Avoids
+ * waiting on the 90-day summary build so the hero "Latest Activity" card
+ * can paint quickly. Strava per-activity streams + media are cached for
+ * 30 days inside enrichActivity / fetchActivityMedia.
+ */
+export async function getLatestActivity(): Promise<ActivitySummary | null> {
+  return cacheGetOrSetSwr("latest-activity:v1", 5 * 60, async () => {
+    const targetWatts = defaultTargetWatts();
+    const activities = await getActivities({ days: 7, per_page: 1 });
+    if (activities.length === 0) return null;
+    const a = activities[0];
+    const [{ zones }, media] = await Promise.all([
+      enrichActivity(a, targetWatts),
+      fetchActivityMedia(a),
+    ]);
+    return summariseActivity(a, zones, media);
+  });
 }
 
 export async function calcZone2Trend(weeks: number): Promise<WeekBucket[]> {

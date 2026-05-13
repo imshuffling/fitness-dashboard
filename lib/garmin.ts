@@ -1,6 +1,6 @@
 import { GarminConnect } from "garmin-connect";
 import { loadGarminTokens, saveGarminTokens } from "./garminTokens";
-import { cacheGetOrSet } from "./kv";
+import { cacheGetOrSet, cacheGetOrSetSwr } from "./kv";
 import { addDays, formatTrainingDay, pastDays, today } from "./trainingDay";
 
 let _client: GarminConnect | null = null;
@@ -663,7 +663,7 @@ export async function getGarminDashboard(date: Date = today()): Promise<GarminDa
 const TILE_TTL = 10 * 60;
 
 export async function getSleepTile(date: Date = today()): Promise<SleepStages> {
-  return cacheGetOrSet(`garmin:tile:sleep:${formatTrainingDay(date)}`, TILE_TTL, async () => {
+  return cacheGetOrSetSwr(`garmin:tile:v2:sleep:${formatTrainingDay(date)}`, TILE_TTL, async () => {
     const todayData = await getGarminSleepStages(date);
     if (todayData.totalHours !== null) return todayData;
     return getGarminSleepStages(addDays(date, -1));
@@ -673,7 +673,7 @@ export async function getSleepTile(date: Date = today()): Promise<SleepStages> {
 export type HRTile = { resting: number | null; min: number | null; max: number | null };
 
 export async function getHRTile(date: Date = today()): Promise<HRTile> {
-  return cacheGetOrSet(`garmin:tile:hr:${formatTrainingDay(date)}`, TILE_TTL, async () => {
+  return cacheGetOrSetSwr(`garmin:tile:v2:hr:${formatTrainingDay(date)}`, TILE_TTL, async () => {
     const [hr, daily] = await Promise.all([getGarminHRDetail(date), getDailyTile(date)]);
     return {
       resting: hr.resting ?? daily.restingHeartRate,
@@ -684,7 +684,7 @@ export async function getHRTile(date: Date = today()): Promise<HRTile> {
 }
 
 export async function getStressTile(date: Date = today()): Promise<StressDay> {
-  return cacheGetOrSet(`garmin:tile:stress:${formatTrainingDay(date)}`, TILE_TTL, async () => {
+  return cacheGetOrSetSwr(`garmin:tile:v2:stress:${formatTrainingDay(date)}`, TILE_TTL, async () => {
     const todayData = await getGarminStress(date);
     if (todayData.avg !== null) return todayData;
     return getGarminStress(addDays(date, -1));
@@ -692,7 +692,7 @@ export async function getStressTile(date: Date = today()): Promise<StressDay> {
 }
 
 export async function getDailyTile(date: Date = today()): Promise<DailyFull> {
-  return cacheGetOrSet(`garmin:tile:daily:${formatTrainingDay(date)}`, TILE_TTL, async () => {
+  return cacheGetOrSetSwr(`garmin:tile:v2:daily:${formatTrainingDay(date)}`, TILE_TTL, async () => {
     const todayData = await getGarminDailyFull(date);
     const empty = todayData.totalSteps === null && todayData.restingHeartRate === null;
     if (!empty) return todayData;
@@ -708,7 +708,7 @@ export async function getPulseOxTile(date: Date = today()): Promise<PulseOxDay> 
 export type HRVTile = { hrv: HRVDay; history: HRVHistoryPoint[] };
 
 export async function getHRVTile(date: Date = today()): Promise<HRVTile> {
-  return cacheGetOrSet(`garmin:tile:hrv:${formatTrainingDay(date)}`, TILE_TTL, async () => {
+  return cacheGetOrSetSwr(`garmin:tile:v2:hrv:${formatTrainingDay(date)}`, TILE_TTL, async () => {
     const [hrvToday, history] = await Promise.all([
       getGarminHRV(date),
       getGarminHRVHistory(28),
@@ -729,8 +729,8 @@ export type YesterdaySection = {
 };
 
 export async function getYesterdaySection(date: Date = today()): Promise<YesterdaySection> {
-  return cacheGetOrSet(
-    `garmin:tile:yesterday:${formatTrainingDay(date)}`,
+  return cacheGetOrSetSwr(
+    `garmin:tile:v2:yesterday:${formatTrainingDay(date)}`,
     TILE_TTL,
     async () => {
       const weekDates = pastDays(7, date);
