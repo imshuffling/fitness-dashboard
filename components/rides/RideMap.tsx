@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from "react";
 import maplibregl from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
 
 const VIEW_W = 1600;
 const VIEW_H = 900;
@@ -11,6 +10,12 @@ const PAD = 0.08;
 
 function isVirtual(type: string | undefined) {
   return !!type && type.startsWith("Virtual");
+}
+
+function isObviousVirtualCoords(coords: [number, number][]) {
+  if (coords.length === 0) return false;
+  const [la, lo] = coords[0];
+  return Math.abs(la) < 1 && Math.abs(lo) < 1;
 }
 
 function VirtualRoute({ coords }: { coords: [number, number][] }) {
@@ -76,12 +81,13 @@ export default function RideMap({
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
-  const virtual = isVirtual(type);
   const enoughCoords = coords.length >= 2;
+  const virtual = isVirtual(type) && isObviousVirtualCoords(coords);
   const useGeoMap = enoughCoords && !virtual;
 
   useEffect(() => {
     if (!useGeoMap || !containerRef.current) return;
+    if (mapRef.current) return;
 
     const lnglat = coords.map(([la, lo]) => [lo, la] as [number, number]);
     let minLng = lnglat[0][0];
@@ -97,7 +103,7 @@ export default function RideMap({
 
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: "https://tiles.openfreemap.org/styles/dark",
+      style: "https://tiles.openfreemap.org/styles/liberty",
       bounds: [
         [minLng, minLat],
         [maxLng, maxLat],
@@ -168,8 +174,8 @@ export default function RideMap({
   return (
     <div
       ref={containerRef}
-      className="rounded-lg overflow-hidden bg-neutral-800"
-      style={{ aspectRatio: "16 / 9" }}
+      className="rounded-lg overflow-hidden bg-neutral-800 w-full"
+      style={{ aspectRatio: "16 / 9", minHeight: 320 }}
     />
   );
 }
