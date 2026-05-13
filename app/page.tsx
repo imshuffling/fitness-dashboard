@@ -29,11 +29,19 @@ import {
   YesterdaySkeleton,
 } from "@/components/dashboard/Skeletons";
 import { buildHealthSummary, type HealthSummary } from "@/lib/health";
-import { getGarminDashboard, type GarminDashboard } from "@/lib/garmin";
+import {
+  getDailyTile,
+  getHRTile,
+  getHRVTile,
+  getPulseOxTile,
+  getSleepTile,
+  getStressTile,
+  getYesterdaySection,
+} from "@/lib/garmin";
 import { isGarminConnected } from "@/lib/garminTokens";
 import { getTrainingLoadTrend, isIntervalsConfigured, type LoadPoint } from "@/lib/intervals";
 import { isConnected } from "@/lib/tokens";
-import { daysAgo, formatTrainingDay, parseTrainingDay } from "@/lib/trainingDay";
+import { daysAgo, parseTrainingDay } from "@/lib/trainingDay";
 
 export const dynamic = "force-dynamic";
 
@@ -52,23 +60,7 @@ const PULSE_OX_ZONES = [
 ];
 
 const getSummary = cache((): Promise<HealthSummary> => buildHealthSummary({ days: 90 }));
-
 const getGarminLinked = cache((): Promise<boolean> => isGarminConnected());
-
-type GarminDashResult =
-  | { status: "ok"; data: GarminDashboard }
-  | { status: "unlinked" }
-  | { status: "error"; message: string };
-
-const getGarminDash = cache(async (): Promise<GarminDashResult> => {
-  if (!(await getGarminLinked())) return { status: "unlinked" };
-  try {
-    const data = await getGarminDashboard();
-    return { status: "ok", data };
-  } catch (e) {
-    return { status: "error", message: (e as Error).message };
-  }
-});
 
 type TrainingLoadResult =
   | { status: "ok"; points: LoadPoint[] }
@@ -176,16 +168,159 @@ async function LatestActivitySection() {
   );
 }
 
-async function GarminSections() {
-  const [dashRes, summaryRes] = await Promise.all([
-    getGarminDash(),
-    getSummary().then(
-      (s) => ({ ok: true as const, summary: s }),
-      (e) => ({ ok: false as const, error: (e as Error).message }),
-    ),
-  ]);
+function TileSkeleton({ label }: { label?: string }) {
+  return (
+    <Card title={label}>
+      <div className="space-y-3">
+        <div className="h-4 w-24 animate-pulse rounded-md bg-neutral-800" />
+        <div className="h-24 w-full animate-pulse rounded-md bg-neutral-800" />
+      </div>
+    </Card>
+  );
+}
 
-  if (dashRes.status === "unlinked") {
+function TileError({ title, message }: { title: string; message: string }) {
+  return (
+    <Card title={title}>
+      <p className="text-xs text-red-400 break-all">{message}</p>
+    </Card>
+  );
+}
+
+async function SleepTile() {
+  let sleep;
+  try {
+    sleep = await getSleepTile();
+  } catch (e) {
+    return <TileError title="Sleep Score" message={(e as Error).message} />;
+  }
+  return (
+    <Card title="Sleep Score" icon={<SleepIcon />} className="flex flex-col">
+      <div className="flex items-baseline gap-3 mb-3">
+        <span className="text-4xl font-semibold tabular-nums">{sleep.sleepScore ?? "—"}</span>
+        {sleep.totalHours !== null && (
+          <span className="text-xs text-neutral-500">
+            {Math.floor(sleep.totalHours)}h {Math.round((sleep.totalHours % 1) * 60)}m Duration
+          </span>
+        )}
+      </div>
+      <div className="flex-1 min-h-0">
+        <SleepStagesChart intraday={sleep.intraday} startTs={sleep.startTs} endTs={sleep.endTs} />
+      </div>
+    </Card>
+  );
+}
+
+async function HRTile() {
+  let hr;
+  try {
+    hr = await getHRTile();
+  } catch (e) {
+    return <TileError title="Heart Rate" message={(e as Error).message} />;
+  }
+  return (
+    <Card
+      title="Heart Rate"
+      icon={<HeartIcon />}
+      meta={hr.min !== null && hr.max !== null ? `${hr.min}–${hr.max}` : undefined}
+    >
+      <ZonedGauge value={hr.resting} min={40} max={180} zones={HR_ZONES} unit="bpm Resting" />
+    </Card>
+  );
+}
+
+async function StressTile() {
+  let stress;
+  try {
+    stress = await getStressTile();
+  } catch (e) {
+    return <TileError title="Stress" message={(e as Error).message} />;
+  }
+  return (
+    <Card
+      title="Stress"
+      icon={<StressIcon />}
+      meta={stress.max !== null ? `max ${stress.max}` : undefined}
+    >
+      <StressDonut value={stress.avg} />
+      <p className="mt-2 text-center text-[11px] text-neutral-500">avg today</p>
+    </Card>
+  );
+}
+
+async function FloorsTile() {
+  let daily;
+  try {
+    daily = await getDailyTile();
+  } catch (e) {
+    return <TileError title="Floors" message={(e as Error).message} />;
+  }
+  return (
+    <Card title="Floors" icon={<FloorsIcon />}>
+      <ZonedGauge
+        value={daily.floorsAscended !== null ? Math.round(daily.floorsAscended) : null}
+        min={0}
+        max={Math.max(20, Math.round(daily.floorsAscended ?? 0) + 5)}
+        zones={[
+          { from: 0, color: "#262626" },
+          { from: 1, color: "#22d3ee" },
+        ]}
+        unit="floors"
+      />
+    </Card>
+  );
+}
+
+async function PulseOxTile() {
+  let pulseOx;
+  try {
+    pulseOx = await getPulseOxTile();
+  } catch (e) {
+    return <TileError title="Pulse Ox" message={(e as Error).message} />;
+  }
+  return (
+    <Card
+      title="Pulse Ox"
+      icon={<PulseOxIcon />}
+      meta={pulseOx.lowest !== null ? `min ${pulseOx.lowest}%` : undefined}
+    >
+      <ZonedGauge
+        value={pulseOx.avg}
+        min={80}
+        max={100}
+        zones={PULSE_OX_ZONES}
+        display={pulseOx.avg !== null ? `${pulseOx.avg}%` : "—"}
+      />
+    </Card>
+  );
+}
+
+async function HRVTile() {
+  let hrv;
+  let history;
+  try {
+    const tile = await getHRVTile();
+    hrv = tile.hrv;
+    history = tile.history;
+  } catch (e) {
+    return <TileError title="HRV Status" message={(e as Error).message} />;
+  }
+  return (
+    <Card title="HRV Status" icon={<HRVIcon />}>
+      <HRVStatusCard
+        status={hrv.status}
+        weeklyAvg={hrv.weeklyAvg}
+        lastNightAvg={hrv.lastNightAvg}
+        baseline={hrv.baseline}
+        history={history}
+      />
+    </Card>
+  );
+}
+
+async function AtAGlanceSection() {
+  const linked = await getGarminLinked();
+  if (!linked) {
     return (
       <section>
         <Card>
@@ -199,154 +334,96 @@ async function GarminSections() {
       </section>
     );
   }
+  return (
+    <section className="space-y-3">
+      <h2 className="text-2xl font-semibold px-1">At a Glance</h2>
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+        <Suspense fallback={<TileSkeleton label="Sleep Score" />}>
+          <SleepTile />
+        </Suspense>
+        <Suspense fallback={<TileSkeleton label="Heart Rate" />}>
+          <HRTile />
+        </Suspense>
+        <Suspense fallback={<TileSkeleton label="Stress" />}>
+          <StressTile />
+        </Suspense>
+        <Suspense fallback={<TileSkeleton label="Floors" />}>
+          <FloorsTile />
+        </Suspense>
+        <Suspense fallback={<TileSkeleton label="Pulse Ox" />}>
+          <PulseOxTile />
+        </Suspense>
+        <Suspense fallback={<TileSkeleton label="HRV Status" />}>
+          <HRVTile />
+        </Suspense>
+      </div>
+    </section>
+  );
+}
 
-  if (dashRes.status === "error") {
+async function YesterdaySectionComponent() {
+  const linked = await getGarminLinked();
+  if (!linked) return null;
+
+  let summary: HealthSummary | null = null;
+  try {
+    summary = await getSummary();
+  } catch {
+    summary = null;
+  }
+
+  let data;
+  try {
+    data = await getYesterdaySection();
+  } catch (e) {
     return (
       <section>
         <Card>
-          <p className="text-xs text-red-400 break-all">{dashRes.message}</p>
+          <p className="text-xs text-red-400 break-all">{(e as Error).message}</p>
         </Card>
       </section>
     );
   }
 
-  const dash = dashRes.data;
-  const summary = summaryRes.ok ? summaryRes.summary : null;
   const generatedAt = summary ? new Date(summary.generatedAt) : new Date();
-  const yesterdayKey = formatTrainingDay(daysAgo(1, generatedAt));
+  const sevenDaysAgo = daysAgo(7, generatedAt);
+  const last7DaysRides = (summary?.recentActivities ?? []).filter(
+    (a) => parseTrainingDay(a.date) >= sevenDaysAgo && a.type.toLowerCase().includes("ride"),
+  );
+  const last7DaysRideKm = last7DaysRides.reduce((s, a) => s + a.distanceKm, 0);
+
+  const yesterdayKey = (() => {
+    const d = daysAgo(1, generatedAt);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  })();
   const yesterdayActivity =
     summary?.recentActivities.find(
       (a) => a.date.startsWith(yesterdayKey) && a.type.toLowerCase().includes("ride"),
     ) ?? null;
 
-  const sevenDaysAgo = daysAgo(7, generatedAt);
-  const last7DaysRides = (summary?.recentActivities ?? []).filter((a) => {
-    return parseTrainingDay(a.date) >= sevenDaysAgo && a.type.toLowerCase().includes("ride");
-  });
-  const last7DaysRideKm = last7DaysRides.reduce((s, a) => s + a.distanceKm, 0);
-
   return (
-    <>
-      <section className="space-y-3">
-        <h2 className="text-2xl font-semibold px-1">At a Glance</h2>
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-          <Card title="Sleep Score" icon={<SleepIcon />} className="flex flex-col">
-            <div className="flex items-baseline gap-3 mb-3">
-              <span className="text-4xl font-semibold tabular-nums">
-                {dash.sleep.sleepScore ?? "—"}
-              </span>
-              {dash.sleep.totalHours !== null && (
-                <span className="text-xs text-neutral-500">
-                  {Math.floor(dash.sleep.totalHours)}h{" "}
-                  {Math.round((dash.sleep.totalHours % 1) * 60)}m Duration
-                </span>
-              )}
-            </div>
-            <div className="flex-1 min-h-0">
-              <SleepStagesChart
-                intraday={dash.sleep.intraday}
-                startTs={dash.sleep.startTs}
-                endTs={dash.sleep.endTs}
-              />
-            </div>
-          </Card>
-
-          <Card
-            title="Heart Rate"
-            icon={<HeartIcon />}
-            meta={
-              dash.hr.min !== null && dash.hr.max !== null
-                ? `${dash.hr.min}–${dash.hr.max}`
-                : undefined
-            }
-          >
-            <ZonedGauge
-              value={dash.hr.resting ?? dash.daily.restingHeartRate}
-              min={40}
-              max={180}
-              zones={HR_ZONES}
-              unit="bpm Resting"
-            />
-          </Card>
-
-          <Card
-            title="Stress"
-            icon={<StressIcon />}
-            meta={dash.stress.max !== null ? `max ${dash.stress.max}` : undefined}
-          >
-            <StressDonut value={dash.stress.avg} />
-            <p className="mt-2 text-center text-[11px] text-neutral-500">avg today</p>
-          </Card>
-
-          <Card title="Floors" icon={<FloorsIcon />}>
-            <ZonedGauge
-              value={
-                dash.daily.floorsAscended !== null
-                  ? Math.round(dash.daily.floorsAscended)
-                  : null
-              }
-              min={0}
-              max={Math.max(20, Math.round(dash.daily.floorsAscended ?? 0) + 5)}
-              zones={[
-                { from: 0, color: "#262626" },
-                { from: 1, color: "#22d3ee" },
-              ]}
-              unit="floors"
-            />
-          </Card>
-
-          <Card
-            title="Pulse Ox"
-            icon={<PulseOxIcon />}
-            meta={dash.pulseOx.lowest !== null ? `min ${dash.pulseOx.lowest}%` : undefined}
-          >
-            <ZonedGauge
-              value={dash.pulseOx.avg}
-              min={80}
-              max={100}
-              zones={PULSE_OX_ZONES}
-              display={dash.pulseOx.avg !== null ? `${dash.pulseOx.avg}%` : "—"}
-            />
-          </Card>
-
-          <Card title="HRV Status" icon={<HRVIcon />}>
-            <HRVStatusCard
-              status={dash.hrv.status}
-              weeklyAvg={dash.hrv.weeklyAvg}
-              lastNightAvg={dash.hrv.lastNightAvg}
-              baseline={dash.hrv.baseline}
-              history={dash.hrvHistory}
-            />
-          </Card>
-        </div>
-      </section>
-
-      <section className="space-y-3">
-        <h2 className="text-2xl font-semibold px-1">Yesterday</h2>
-        <div className="grid lg:grid-cols-2 gap-3 sm:gap-4">
-          <Card>
-            <YesterdayCard
-              activity={yesterdayActivity}
-              daily={dash.weekDaily[5] ?? dash.daily}
-              sleep={dash.weekSleep[5] ?? dash.sleep}
-              hrv={dash.hrv}
-              pulseOx={dash.weekPulseOx[5] ?? dash.pulseOx}
-              bodyBatteryDelta={{
-                charged: dash.bodyBattery.charged,
-                drained: dash.bodyBattery.drained,
-              }}
-            />
-          </Card>
-          <Card title="Last 7 Days">
-            <Last7DaysCard
-              rollup={dash.weekRollup}
-              rideCount={last7DaysRides.length}
-              rideDistanceKm={last7DaysRideKm}
-            />
-          </Card>
-        </div>
-      </section>
-    </>
+    <section className="space-y-3">
+      <h2 className="text-2xl font-semibold px-1">Yesterday</h2>
+      <div className="grid lg:grid-cols-2 gap-3 sm:gap-4">
+        <Card>
+          <YesterdayCard
+            activity={yesterdayActivity}
+            daily={data.daily}
+            sleep={data.sleep}
+            hrv={data.hrv}
+            pulseOx={data.pulseOx}
+            bodyBatteryDelta={data.bodyBatteryDelta}
+          />
+        </Card>
+        <Card title="Last 7 Days">
+          <Last7DaysCard
+            rollup={data.weekRollup}
+            rideCount={last7DaysRides.length}
+            rideDistanceKm={last7DaysRideKm}
+          />
+        </Card>
+      </div>
+    </section>
   );
 }
 
@@ -415,8 +492,12 @@ export default async function Home() {
           <LatestActivitySection />
         </Suspense>
 
-        <Suspense fallback={<><AtAGlanceSkeleton /><YesterdaySkeleton /></>}>
-          <GarminSections />
+        <Suspense fallback={<AtAGlanceSkeleton />}>
+          <AtAGlanceSection />
+        </Suspense>
+
+        <Suspense fallback={<YesterdaySkeleton />}>
+          <YesterdaySectionComponent />
         </Suspense>
 
         <Suspense fallback={<TrainingLoadSkeleton />}>

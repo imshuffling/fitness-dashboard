@@ -654,6 +654,111 @@ export async function getGarminDashboard(date: Date = today()): Promise<GarminDa
   return cacheGetOrSet(`garmin:dash:${formatTrainingDay(date)}`, 10 * 60, () => buildGarminDashboard(date));
 }
 
+/* -------------------------------------------------------------------------- */
+/* Per-tile cached fetchers — let each dashboard card stream independently.   */
+/* Each is KV-cached at the tile level so a cache miss only re-fetches the    */
+/* endpoints that tile needs.                                                  */
+/* -------------------------------------------------------------------------- */
+
+const TILE_TTL = 10 * 60;
+
+export async function getSleepTile(date: Date = today()): Promise<SleepStages> {
+  return cacheGetOrSet(`garmin:tile:sleep:${formatTrainingDay(date)}`, TILE_TTL, async () => {
+    const todayData = await getGarminSleepStages(date);
+    if (todayData.totalHours !== null) return todayData;
+    return getGarminSleepStages(addDays(date, -1));
+  });
+}
+
+export type HRTile = { resting: number | null; min: number | null; max: number | null };
+
+export async function getHRTile(date: Date = today()): Promise<HRTile> {
+  return cacheGetOrSet(`garmin:tile:hr:${formatTrainingDay(date)}`, TILE_TTL, async () => {
+    const [hr, daily] = await Promise.all([getGarminHRDetail(date), getDailyTile(date)]);
+    return {
+      resting: hr.resting ?? daily.restingHeartRate,
+      min: hr.min ?? daily.minHeartRate,
+      max: hr.max ?? daily.maxHeartRate,
+    };
+  });
+}
+
+export async function getStressTile(date: Date = today()): Promise<StressDay> {
+  return cacheGetOrSet(`garmin:tile:stress:${formatTrainingDay(date)}`, TILE_TTL, async () => {
+    const todayData = await getGarminStress(date);
+    if (todayData.avg !== null) return todayData;
+    return getGarminStress(addDays(date, -1));
+  });
+}
+
+export async function getDailyTile(date: Date = today()): Promise<DailyFull> {
+  return cacheGetOrSet(`garmin:tile:daily:${formatTrainingDay(date)}`, TILE_TTL, async () => {
+    const todayData = await getGarminDailyFull(date);
+    const empty = todayData.totalSteps === null && todayData.restingHeartRate === null;
+    if (!empty) return todayData;
+    return getGarminDailyFull(addDays(date, -1));
+  });
+}
+
+export async function getPulseOxTile(date: Date = today()): Promise<PulseOxDay> {
+  const daily = await getDailyTile(date);
+  return pulseOxFromDaily(daily);
+}
+
+export type HRVTile = { hrv: HRVDay; history: HRVHistoryPoint[] };
+
+export async function getHRVTile(date: Date = today()): Promise<HRVTile> {
+  return cacheGetOrSet(`garmin:tile:hrv:${formatTrainingDay(date)}`, TILE_TTL, async () => {
+    const [hrvToday, history] = await Promise.all([
+      getGarminHRV(date),
+      getGarminHRVHistory(28),
+    ]);
+    const empty = hrvToday.lastNightAvg === null && hrvToday.weeklyAvg === null;
+    const hrv = empty ? await getGarminHRV(addDays(date, -1)) : hrvToday;
+    return { hrv, history };
+  });
+}
+
+export type YesterdaySection = {
+  daily: DailyFull;
+  sleep: SleepStages;
+  hrv: HRVDay;
+  pulseOx: PulseOxDay;
+  bodyBatteryDelta: { charged: number | null; drained: number | null };
+  weekRollup: WeekRollup;
+};
+
+export async function getYesterdaySection(date: Date = today()): Promise<YesterdaySection> {
+  return cacheGetOrSet(
+    `garmin:tile:yesterday:${formatTrainingDay(date)}`,
+    TILE_TTL,
+    async () => {
+      const weekDates = pastDays(7, date);
+      const [weekDaily, weekSleep, hrvTile, bodyBattery] = await Promise.all([
+        Promise.all(weekDates.map((d) => getGarminDailyFull(d))),
+        Promise.all(weekDates.map((d) => getGarminSleepStages(d))),
+        getHRVTile(date),
+        getGarminBodyBattery(date),
+      ]);
+      const yesterdayDaily = weekDaily[5] ?? weekDaily[weekDaily.length - 1];
+      const yesterdaySleep = weekSleep[5] ?? weekSleep[weekSleep.length - 1];
+      const weekPulseOx = weekDaily.map(pulseOxFromDaily);
+      const yesterdayPulseOx = weekPulseOx[5] ?? weekPulseOx[weekPulseOx.length - 1];
+      return {
+        daily: yesterdayDaily,
+        sleep: yesterdaySleep,
+        hrv: hrvTile.hrv,
+        pulseOx: yesterdayPulseOx,
+        bodyBatteryDelta: {
+          charged: yesterdayDaily.bodyBatteryChargedValue ?? bodyBattery.charged,
+          drained: yesterdayDaily.bodyBatteryDrainedValue ?? bodyBattery.drained,
+        },
+        weekRollup: buildWeekRollup(weekDaily, weekSleep, weekPulseOx),
+      };
+    },
+  );
+}
+
 function avg(values: Array<number | null | undefined>): number | null {
   const valid = values.filter((v): v is number => typeof v === "number" && !Number.isNaN(v));
   if (valid.length === 0) return null;
