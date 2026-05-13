@@ -10,6 +10,7 @@ const PUBLIC_PATHS = [
   "/api/strava",
   "/api/intervals",
   "/api/garmin/wellness",
+  "/api/warm",
   "/auth/strava/callback",
   "/favicon.ico",
   "/.well-known",
