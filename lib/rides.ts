@@ -10,11 +10,14 @@ import { calcZoneDistribution, type ZoneSeconds } from "./zones";
 
 export type PowerCurvePoint = { duration: number; watts: number };
 
+export type VirtualPlatform = "zwift" | "mywhoosh" | "other";
+
 export type RideDetail = {
   id: number;
   name: string;
   date: string;
   type: string;
+  platform: VirtualPlatform | null;
   durationMin: number;
   distanceKm: number;
   elevationGainM: number | null;
@@ -101,11 +104,28 @@ type StravaActivityDetail = Awaited<ReturnType<typeof getActivityDetail>> & {
   max_watts?: number;
   kilojoules?: number;
   kudos_count?: number;
+  device_name?: string;
+  external_id?: string;
+  trainer?: boolean;
   map?: { summary_polyline?: string; polyline?: string };
 };
 
+function detectPlatform(detail: StravaActivityDetail): VirtualPlatform | null {
+  const dn = (detail.device_name ?? "").toLowerCase();
+  const ext = (detail.external_id ?? "").toLowerCase();
+  const name = (detail.name ?? "").toLowerCase();
+  const haystack = `${dn} ${ext} ${name}`;
+  if (haystack.includes("zwift")) return "zwift";
+  if (haystack.includes("mywhoosh") || haystack.includes("my whoosh") || haystack.includes("my-whoosh")) {
+    return "mywhoosh";
+  }
+  const sport = detail.sport_type ?? detail.type;
+  if (sport && sport.startsWith("Virtual")) return "other";
+  return null;
+}
+
 export async function getRideDetail(id: number): Promise<RideDetail> {
-  const cacheKey = `ride:v2:${id}`;
+  const cacheKey = `ride:v3:${id}`;
   const cached = await cacheGet<RideDetail>(cacheKey);
   if (cached) return cached;
 
@@ -136,6 +156,7 @@ export async function getRideDetail(id: number): Promise<RideDetail> {
     name: detail.name,
     date: detail.start_date_local,
     type: detail.sport_type ?? detail.type,
+    platform: detectPlatform(detail),
     durationMin: Math.round(detail.moving_time / 60),
     distanceKm: Math.round((detail.distance / 1000) * 10) / 10,
     elevationGainM: detail.total_elevation_gain

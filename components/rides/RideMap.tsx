@@ -8,9 +8,13 @@ const VIEW_H = 900;
 const TARGET_ASPECT = VIEW_W / VIEW_H;
 const PAD = 0.08;
 
-function isVirtual(type: string | undefined) {
-  return !!type && type.startsWith("Virtual");
-}
+type Platform = "zwift" | "mywhoosh" | "other";
+
+const PLATFORM_LABEL: Record<Platform, string> = {
+  zwift: "Zwift",
+  mywhoosh: "MyWhoosh",
+  other: "Virtual",
+};
 
 function isObviousVirtualCoords(coords: [number, number][]) {
   if (coords.length === 0) return false;
@@ -18,7 +22,13 @@ function isObviousVirtualCoords(coords: [number, number][]) {
   return Math.abs(la) < 1 && Math.abs(lo) < 1;
 }
 
-function VirtualRoute({ coords }: { coords: [number, number][] }) {
+function VirtualRoute({
+  coords,
+  platform,
+}: {
+  coords: [number, number][];
+  platform: Platform | null;
+}) {
   let minLat = coords[0][0];
   let maxLat = coords[0][0];
   let minLng = coords[0][1];
@@ -55,7 +65,12 @@ function VirtualRoute({ coords }: { coords: [number, number][] }) {
   const [s0, s1] = coords[0];
   const [e0, e1] = coords[coords.length - 1];
   return (
-    <div className="overflow-hidden rounded-lg bg-neutral-900/60">
+    <div className="relative overflow-hidden rounded-lg bg-neutral-900/60">
+      {platform && (
+        <div className="pointer-events-none absolute top-2 left-2 z-10 rounded-full bg-neutral-950/70 px-2.5 py-1 text-[10px] uppercase tracking-wider text-neutral-300 ring-1 ring-neutral-800">
+          {PLATFORM_LABEL[platform]}
+        </div>
+      )}
       <svg viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} className="w-full h-auto block">
         <path
           d={path}
@@ -75,14 +90,18 @@ function VirtualRoute({ coords }: { coords: [number, number][] }) {
 export default function RideMap({
   coords,
   type,
+  platform,
 }: {
   coords: [number, number][];
   type?: string;
+  platform?: Platform | null;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const enoughCoords = coords.length >= 2;
-  const virtual = isVirtual(type) && isObviousVirtualCoords(coords);
+  const typeIsVirtual = !!type && type.startsWith("Virtual");
+  const virtual =
+    !!platform || (typeIsVirtual && isObviousVirtualCoords(coords));
   const useGeoMap = enoughCoords && !virtual;
 
   useEffect(() => {
@@ -168,7 +187,7 @@ export default function RideMap({
   }
 
   if (virtual) {
-    return <VirtualRoute coords={coords} />;
+    return <VirtualRoute coords={coords} platform={platform ?? null} />;
   }
 
   return (

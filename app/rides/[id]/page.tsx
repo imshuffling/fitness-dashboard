@@ -26,6 +26,19 @@ const TYPE_ICONS: Record<string, string> = {
   Rowing: "🚣",
 };
 
+const PLATFORM_LABEL: Record<string, string> = {
+  zwift: "Zwift",
+  mywhoosh: "MyWhoosh",
+  other: "Virtual",
+};
+
+function rideTypeLabel(type: string, platform: string | null): string {
+  if (platform && PLATFORM_LABEL[platform]) {
+    return `${PLATFORM_LABEL[platform]} ride`;
+  }
+  return type;
+}
+
 function formatRideDate(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleDateString(undefined, {
@@ -115,7 +128,7 @@ export default async function RidePage({ params }: { params: Promise<{ id: strin
                 {ride.name}
               </h1>
               <p className="mt-0.5 text-[11px] sm:text-xs text-neutral-400 flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                <span>{ride.type}</span>
+                <span>{rideTypeLabel(ride.type, ride.platform)}</span>
                 <span className="text-neutral-700">·</span>
                 <span>{formatRideDate(ride.date)}</span>
                 <span className="text-neutral-700">·</span>
@@ -168,7 +181,7 @@ export default async function RidePage({ params }: { params: Promise<{ id: strin
               {ride.polyline.length > 0 ? `${ride.polyline.length} points` : ""}
             </span>
           </div>
-          <RideMap coords={ride.polyline} type={ride.type} />
+          <RideMap coords={ride.polyline} type={ride.type} platform={ride.platform} />
         </section>
 
         <section className="grid lg:grid-cols-2 gap-4">
