@@ -1,3 +1,4 @@
+import { cacheGetOrSetSwr } from "./kv";
 import { getAccessToken } from "./tokens";
 
 const BASE = "https://www.strava.com/api/v3";
@@ -91,6 +92,14 @@ export async function getAthleteProfile(): Promise<StravaAthlete> {
 
 export async function getActivities(opts: { days?: number; per_page?: number } = {}): Promise<StravaActivity[]> {
   const { days = 30, per_page = 100 } = opts;
+  return cacheGetOrSetSwr(
+    `strava:activities:v1:${days}:${per_page}`,
+    5 * 60,
+    () => fetchActivitiesFresh(days, per_page),
+  );
+}
+
+async function fetchActivitiesFresh(days: number, per_page: number): Promise<StravaActivity[]> {
   const after = Math.floor((Date.now() - days * 86400 * 1000) / 1000);
   const out: StravaActivity[] = [];
   let page = 1;

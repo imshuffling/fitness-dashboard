@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   addDays,
   addMonths,
@@ -98,6 +98,24 @@ export default function Calendar({ activities }: { activities: Activity[] }) {
   const [view, setView] = useState<View>("month");
   const [cursor, setCursor] = useState<Date>(new Date());
   const [selected, setSelected] = useState<Activity | null>(null);
+  const [visible, setVisible] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setVisible(true);
+          obs.disconnect();
+        }
+      },
+      { rootMargin: "200px" },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
 
   const days = useMemo(() => buildDays(view, cursor), [view, cursor]);
 
@@ -129,8 +147,10 @@ export default function Calendar({ activities }: { activities: Activity[] }) {
   const today = new Date();
   const weekdayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
+  if (!visible) return <div ref={containerRef} className="min-h-[400px]" />;
+
   return (
-    <div className="space-y-3">
+    <div ref={containerRef} className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <button

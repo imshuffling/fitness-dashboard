@@ -49,34 +49,6 @@ export async function loginAndSaveGarmin(username: string, password: string): Pr
   _client = client;
 }
 
-async function getGarminUserProfile() {
-  const c = await getClient();
-  const profile = await c.getUserProfile();
-  await persist(c);
-  return profile;
-}
-
-async function getGarminSteps(date: Date) {
-  const c = await getClient();
-  const steps = await c.getSteps(date);
-  await persist(c);
-  return steps;
-}
-
-async function getGarminSleep(date: Date) {
-  const c = await getClient();
-  const sleep = await c.getSleepData(date);
-  await persist(c);
-  return sleep;
-}
-
-async function getGarminHeartRate(date: Date) {
-  const c = await getClient();
-  const hr = await c.getHeartRate(date);
-  await persist(c);
-  return hr;
-}
-
 export type GarminDailySummary = {
   date: string;
   steps: number | null;
