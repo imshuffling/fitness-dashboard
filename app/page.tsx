@@ -335,7 +335,10 @@ async function AtAGlanceSection() {
     );
   }
   return (
-    <section className="space-y-3">
+    <section
+      className="space-y-3"
+      style={{ contentVisibility: "auto", containIntrinsicSize: "auto 600px" }}
+    >
       <h2 className="text-2xl font-semibold px-1">At a Glance</h2>
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         <Suspense fallback={<TileSkeleton label="Sleep Score" />}>
@@ -402,7 +405,10 @@ async function YesterdaySectionComponent() {
     ) ?? null;
 
   return (
-    <section className="space-y-3">
+    <section
+      className="space-y-3"
+      style={{ contentVisibility: "auto", containIntrinsicSize: "auto 500px" }}
+    >
       <h2 className="text-2xl font-semibold px-1">Yesterday</h2>
       <div className="grid lg:grid-cols-2 gap-3 sm:gap-4">
         <Card>
@@ -431,7 +437,10 @@ async function TrainingLoadSection() {
   const res = await getTrainingLoad();
   if (res.status === "unconfigured") return null;
   return (
-    <section className="space-y-3">
+    <section
+      className="space-y-3"
+      style={{ contentVisibility: "auto", containIntrinsicSize: "auto 340px" }}
+    >
       <h2 className="text-2xl font-semibold px-1">Training Load</h2>
       <Card meta="CTL · ATL · TSB">
         {res.status === "error" ? (
@@ -452,7 +461,10 @@ async function CalendarSection() {
     return <SummaryErrorCard error={(e as Error).message} />;
   }
   return (
-    <section className="space-y-3">
+    <section
+      className="space-y-3"
+      style={{ contentVisibility: "auto", containIntrinsicSize: "auto 500px" }}
+    >
       <h2 className="text-2xl font-semibold px-1">Activity Calendar</h2>
       <Card>
         <Calendar activities={summary.recentActivities} />

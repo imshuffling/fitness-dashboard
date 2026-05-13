@@ -42,7 +42,10 @@ export function LatestActivitySkeleton() {
 
 export function AtAGlanceSkeleton() {
   return (
-    <section className="space-y-3">
+    <section
+      className="space-y-3"
+      style={{ contentVisibility: "auto", containIntrinsicSize: "auto 600px" }}
+    >
       <h2 className="text-2xl font-semibold px-1">At a Glance</h2>
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         {Array.from({ length: 6 }).map((_, i) => (
@@ -60,7 +63,10 @@ export function AtAGlanceSkeleton() {
 
 export function YesterdaySkeleton() {
   return (
-    <section className="space-y-3">
+    <section
+      className="space-y-3"
+      style={{ contentVisibility: "auto", containIntrinsicSize: "auto 500px" }}
+    >
       <h2 className="text-2xl font-semibold px-1">Yesterday</h2>
       <div className="grid lg:grid-cols-2 gap-3 sm:gap-4">
         <Card>
@@ -82,7 +88,10 @@ export function YesterdaySkeleton() {
 
 export function TrainingLoadSkeleton() {
   return (
-    <section className="space-y-3">
+    <section
+      className="space-y-3"
+      style={{ contentVisibility: "auto", containIntrinsicSize: "auto 340px" }}
+    >
       <h2 className="text-2xl font-semibold px-1">Training Load</h2>
       <Card meta="CTL · ATL · TSB">
         <Pulse className="h-48 w-full" />
@@ -93,7 +102,10 @@ export function TrainingLoadSkeleton() {
 
 export function CalendarSkeleton() {
   return (
-    <section className="space-y-3">
+    <section
+      className="space-y-3"
+      style={{ contentVisibility: "auto", containIntrinsicSize: "auto 500px" }}
+    >
       <h2 className="text-2xl font-semibold px-1">Activity Calendar</h2>
       <Card>
         <div className="grid grid-cols-7 gap-2">
