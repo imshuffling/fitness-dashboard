@@ -17,6 +17,7 @@
     "date-fns": "^4.1.0",
     "garmin-connect": "^1.6.2",
     "hls.js": "^1.6.16",
+    "maplibre-gl": "^5.24.0",
     "next": "16.2.4",
     "react": "19.2.4",
     "react-dom": "19.2.4",

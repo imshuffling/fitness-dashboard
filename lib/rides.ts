@@ -24,6 +24,7 @@ export type RideDetail = {
   maxWatts: number | null;
   weightedAvgWatts: number | null;
   kilojoules: number | null;
+  kudosCount: number;
   photos: StravaPhoto[];
   polyline: [number, number][];
   powerCurve: PowerCurvePoint[];
@@ -99,11 +100,12 @@ type StravaActivityDetail = Awaited<ReturnType<typeof getActivityDetail>> & {
   weighted_average_watts?: number;
   max_watts?: number;
   kilojoules?: number;
+  kudos_count?: number;
   map?: { summary_polyline?: string; polyline?: string };
 };
 
 export async function getRideDetail(id: number): Promise<RideDetail> {
-  const cacheKey = `ride:v1:${id}`;
+  const cacheKey = `ride:v2:${id}`;
   const cached = await cacheGet<RideDetail>(cacheKey);
   if (cached) return cached;
 
@@ -147,6 +149,7 @@ export async function getRideDetail(id: number): Promise<RideDetail> {
       ? Math.round(detail.weighted_average_watts)
       : null,
     kilojoules: detail.kilojoules ? Math.round(detail.kilojoules) : null,
+    kudosCount: detail.kudos_count ?? 0,
     photos,
     polyline,
     powerCurve,

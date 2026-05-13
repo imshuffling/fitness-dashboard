@@ -118,6 +118,17 @@ export default async function RidePage({ params }: { params: Promise<{ id: strin
                 <span>{ride.type}</span>
                 <span className="text-neutral-700">·</span>
                 <span>{formatRideDate(ride.date)}</span>
+                <span className="text-neutral-700">·</span>
+                <span className="inline-flex items-center gap-1 tabular-nums" title="Kudos">
+                  <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden
+                    className="h-3 w-3 fill-orange-400"
+                  >
+                    <path d="M2 21h4V9H2v12zM22 10c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L13.17 1 7.59 6.59C7.22 6.95 7 7.45 7 8v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-1z" />
+                  </svg>
+                  {ride.kudosCount}
+                </span>
               </p>
             </div>
           </div>
@@ -157,7 +168,7 @@ export default async function RidePage({ params }: { params: Promise<{ id: strin
               {ride.polyline.length > 0 ? `${ride.polyline.length} points` : ""}
             </span>
           </div>
-          <RideMap coords={ride.polyline} />
+          <RideMap coords={ride.polyline} type={ride.type} />
         </section>
 
         <section className="grid lg:grid-cols-2 gap-4">
