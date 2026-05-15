@@ -100,8 +100,11 @@ export default function RideMap({
   const mapRef = useRef<maplibregl.Map | null>(null);
   const enoughCoords = coords.length >= 2;
   const typeIsVirtual = !!type && type.startsWith("Virtual");
+  // Only fall back to the bare SVG when the coords are genuinely unplottable
+  // (~0,0). Platform-tagged rides (Zwift, MyWhoosh) still expose real lat/lng,
+  // so render them on the geo basemap and just badge the platform.
   const virtual =
-    !!platform || (typeIsVirtual && isObviousVirtualCoords(coords));
+    enoughCoords && (typeIsVirtual || !!platform) && isObviousVirtualCoords(coords);
   const useGeoMap = enoughCoords && !virtual;
 
   useEffect(() => {
@@ -191,10 +194,17 @@ export default function RideMap({
   }
 
   return (
-    <div
-      ref={containerRef}
-      className="rounded-lg overflow-hidden bg-neutral-800 w-full"
-      style={{ aspectRatio: "16 / 9", minHeight: 320 }}
-    />
+    <div className="relative">
+      {platform && (
+        <div className="pointer-events-none absolute top-2 left-2 z-10 rounded-full bg-neutral-950/70 px-2.5 py-1 text-[10px] uppercase tracking-wider text-neutral-300 ring-1 ring-neutral-800">
+          {PLATFORM_LABEL[platform]}
+        </div>
+      )}
+      <div
+        ref={containerRef}
+        className="rounded-lg overflow-hidden bg-neutral-800 w-full"
+        style={{ aspectRatio: "16 / 9", minHeight: 320 }}
+      />
+    </div>
   );
 }
