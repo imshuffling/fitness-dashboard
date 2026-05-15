@@ -4,6 +4,7 @@ import {
   getActivityPhotos,
   getActivityStreams,
   getAthleteProfile,
+  getMostRecentActivity,
   isVideoPhoto,
   videoSrc,
   type StravaActivity,
@@ -305,9 +306,8 @@ async function buildHealthSummaryFresh(days: number, targetWatts: number): Promi
 export async function getLatestActivity(): Promise<ActivitySummary | null> {
   return cacheGetOrSetSwr("latest-activity:v1", 5 * 60, async () => {
     const targetWatts = defaultTargetWatts();
-    const activities = await getActivities({ days: 7, per_page: 1 });
-    if (activities.length === 0) return null;
-    const a = activities[0];
+    const a = await getMostRecentActivity();
+    if (!a) return null;
     const [{ zones }, media] = await Promise.all([
       enrichActivity(a, targetWatts),
       fetchActivityMedia(a),

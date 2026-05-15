@@ -99,6 +99,16 @@ export async function getActivities(opts: { days?: number; per_page?: number } =
   );
 }
 
+export async function getMostRecentActivity(): Promise<StravaActivity | null> {
+  return cacheGetOrSetSwr("strava:latest:v1", 5 * 60, async () => {
+    const batch = await stravaFetch<StravaActivity[]>("/athlete/activities", {
+      per_page: 1,
+      page: 1,
+    });
+    return batch[0] ?? null;
+  });
+}
+
 async function fetchActivitiesFresh(days: number, per_page: number): Promise<StravaActivity[]> {
   const after = Math.floor((Date.now() - days * 86400 * 1000) / 1000);
   const out: StravaActivity[] = [];
@@ -114,6 +124,7 @@ async function fetchActivitiesFresh(days: number, per_page: number): Promise<Str
     page++;
     if (page > 5) break;
   }
+  out.sort((x, y) => y.start_date.localeCompare(x.start_date));
   return out;
 }
 
