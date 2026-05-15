@@ -30,7 +30,7 @@ export default function HeaderMenu() {
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="inline-flex items-center gap-2 rounded-full border border-neutral-800 bg-neutral-900/60 px-4 py-2 text-sm text-neutral-200 hover:bg-neutral-800 hover:text-neutral-50 transition"
+        className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-neutral-800 bg-neutral-900/60 px-4 py-2 text-sm text-neutral-200 hover:bg-neutral-800 hover:text-neutral-50 transition"
       >
         Menu
         <svg
@@ -86,7 +86,7 @@ export default function HeaderMenu() {
             <button
               type="submit"
               role="menuitem"
-              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm text-neutral-200 hover:bg-neutral-800/80"
+              className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm text-neutral-200 hover:bg-neutral-800/80"
             >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
                 <path d="M13 8a5 5 0 1 1-1.46-3.54M13 3v3h-3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
@@ -99,7 +99,7 @@ export default function HeaderMenu() {
             <button
               type="submit"
               role="menuitem"
-              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm text-neutral-400 hover:bg-neutral-800/80 hover:text-neutral-50"
+              className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm text-neutral-400 hover:bg-neutral-800/80 hover:text-neutral-50"
             >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
                 <path d="M9.5 2.5h-5a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h5M10 5l3 3-3 3M13 8H6.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
