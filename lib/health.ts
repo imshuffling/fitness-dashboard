@@ -77,7 +77,7 @@ export type HealthSummary = {
 const CYCLING_TYPES = new Set(["Ride", "VirtualRide", "EBikeRide", "Velomobile"]);
 
 export async function clearSummaryCache(): Promise<number> {
-  const patterns = ["summary:v1:*", "summary:v2:*", "summary:v3:*", "summary:v4:*", "summary:v5:*", "summary:v6:*", "summary:v7:*", "intervals:load:*", "garmin:week:*", "garmin:dash:*", "garmin:tile:*"];
+  const patterns = ["summary:v1:*", "summary:v2:*", "summary:v3:*", "summary:v4:*", "summary:v5:*", "summary:v6:*", "summary:v7:*", "strava:latest:*", "strava:activities:*", "intervals:load:*", "garmin:week:*", "garmin:dash:*", "garmin:tile:*"];
   let deleted = 0;
   for (const pattern of patterns) {
     deleted += await cacheScanDelete(pattern);
@@ -304,16 +304,14 @@ async function buildHealthSummaryFresh(days: number, targetWatts: number): Promi
  * 30 days inside enrichActivity / fetchActivityMedia.
  */
 export async function getLatestActivity(): Promise<ActivitySummary | null> {
-  return cacheGetOrSetSwr("latest-activity:v1", 5 * 60, async () => {
-    const targetWatts = defaultTargetWatts();
-    const a = await getMostRecentActivity();
-    if (!a) return null;
-    const [{ zones }, media] = await Promise.all([
-      enrichActivity(a, targetWatts),
-      fetchActivityMedia(a),
-    ]);
-    return summariseActivity(a, zones, media);
-  });
+  const targetWatts = defaultTargetWatts();
+  const a = await getMostRecentActivity();
+  if (!a) return null;
+  const [{ zones }, media] = await Promise.all([
+    enrichActivity(a, targetWatts),
+    fetchActivityMedia(a),
+  ]);
+  return summariseActivity(a, zones, media);
 }
 
 export async function calcZone2Trend(weeks: number): Promise<WeekBucket[]> {
