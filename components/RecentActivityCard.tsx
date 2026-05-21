@@ -89,8 +89,8 @@ export default function RecentActivityCard({ activity }: { activity: ActivitySum
   );
 
   return (
-    <div className="group overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900/60 transition-colors hover:border-neutral-700">
-      <div className="flex flex-col md:flex-row">
+    <div className="group h-full overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900/60 transition-colors hover:border-neutral-700">
+      <div className="flex h-full flex-col md:flex-row">
         {media}
 
         <Link href={href} className="flex flex-1 flex-col p-4 sm:p-5 min-w-0">

@@ -32,7 +32,7 @@ import {
 } from "@/components/dashboard/Skeletons";
 import {
   buildHealthSummary,
-  getLatestActivity,
+  getLatestDayActivities,
   type ActivitySummary,
   type HealthSummary,
 } from "@/lib/health";
@@ -48,7 +48,7 @@ import {
 import { isGarminConnected } from "@/lib/garminTokens";
 import { getTrainingLoadTrend, isIntervalsConfigured, type LoadPoint } from "@/lib/intervals";
 import { isConnected } from "@/lib/tokens";
-import { daysAgo, parseTrainingDay } from "@/lib/trainingDay";
+import { daysAgo, formatTrainingDay, parseTrainingDay, today } from "@/lib/trainingDay";
 
 export const dynamic = "force-dynamic";
 
@@ -161,17 +161,27 @@ async function HeaderSection() {
 }
 
 async function LatestActivitySection() {
-  let activity: ActivitySummary | null;
+  let activities: ActivitySummary[];
   try {
-    activity = await getLatestActivity();
+    activities = await getLatestDayActivities();
   } catch (e) {
     return <SummaryErrorCard error={(e as Error).message} />;
   }
-  if (!activity) return null;
+  if (activities.length === 0) return null;
+  const isToday = activities[0].date.slice(0, 10) === formatTrainingDay(today());
+  const heading = isToday
+    ? activities.length > 1
+      ? "Today's Workouts"
+      : "Today's Workout"
+    : "Latest Activity";
   return (
     <section className="space-y-3">
-      <h2 className="text-2xl font-semibold px-1">Latest Activity</h2>
-      <RecentActivityCard activity={activity} />
+      <h2 className="text-2xl font-semibold px-1">{heading}</h2>
+      <div className="grid auto-rows-fr gap-3 sm:gap-4">
+        {activities.map((activity) => (
+          <RecentActivityCard key={activity.id} activity={activity} />
+        ))}
+      </div>
     </section>
   );
 }

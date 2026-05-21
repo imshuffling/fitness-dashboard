@@ -314,6 +314,28 @@ export async function getLatestActivity(): Promise<ActivitySummary | null> {
   return summariseActivity(a, zones, media);
 }
 
+/**
+ * Every activity sharing the most-recent activity's calendar day, enriched
+ * and sorted newest-first. Backs the "Latest Activity" section so a day with
+ * more than one workout shows them all stacked.
+ */
+export async function getLatestDayActivities(): Promise<ActivitySummary[]> {
+  const targetWatts = defaultTargetWatts();
+  const recent = await getActivities({ days: 7 });
+  if (recent.length === 0) return [];
+  const latestDay = recent[0].start_date_local.slice(0, 10);
+  const sameDay = recent.filter((a) => a.start_date_local.slice(0, 10) === latestDay);
+  return Promise.all(
+    sameDay.map(async (a) => {
+      const [{ zones }, media] = await Promise.all([
+        enrichActivity(a, targetWatts),
+        fetchActivityMedia(a),
+      ]);
+      return summariseActivity(a, zones, media);
+    }),
+  );
+}
+
 export async function calcZone2Trend(weeks: number): Promise<WeekBucket[]> {
   const days = weeks * 7;
   const summary = await buildHealthSummary({ days });
