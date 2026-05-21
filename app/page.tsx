@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import HeaderMenu from "@/components/HeaderMenu";
 import RecentActivityCard from "@/components/RecentActivityCard";
+import TrainingLoadInfo from "@/components/TrainingLoadInfo";
 import Card from "@/components/garmin/Card";
 
 const Calendar = nextDynamic(() => import("@/components/Calendar"));
@@ -460,7 +461,7 @@ async function TrainingLoadSection() {
       style={{ contentVisibility: "auto", containIntrinsicSize: "auto 340px" }}
     >
       <h2 className="text-2xl font-semibold px-1">Training Load</h2>
-      <Card meta="CTL · ATL · TSB">
+      <Card meta={<TrainingLoadInfo />}>
         {res.status === "error" ? (
           <p className="text-xs text-red-400">{res.message}</p>
         ) : (
