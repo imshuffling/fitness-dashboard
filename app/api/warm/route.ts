@@ -11,7 +11,6 @@ import {
 import { isGarminConnected } from "@/lib/garminTokens";
 import { buildHealthSummary, getLatestActivity } from "@/lib/health";
 import { getTrainingLoadTrend, isIntervalsConfigured } from "@/lib/intervals";
-import { isConnected } from "@/lib/tokens";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -25,20 +24,15 @@ export async function GET(req: Request) {
     }
   }
 
-  if (!(await isConnected())) {
-    return NextResponse.json({ skipped: "strava not connected" });
+  if (!isIntervalsConfigured()) {
+    return NextResponse.json({ skipped: "intervals.icu not configured" });
   }
 
   const tasks: Array<Promise<unknown>> = [
     buildHealthSummary({ days: 90 }).catch((e) => ({ summaryError: (e as Error).message })),
     getLatestActivity().catch((e) => ({ latestError: (e as Error).message })),
+    getTrainingLoadTrend(90).catch((e) => ({ intervalsError: (e as Error).message })),
   ];
-
-  if (isIntervalsConfigured()) {
-    tasks.push(
-      getTrainingLoadTrend(90).catch((e) => ({ intervalsError: (e as Error).message })),
-    );
-  }
 
   if (await isGarminConnected()) {
     tasks.push(

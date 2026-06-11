@@ -3,23 +3,20 @@ import ZwiftHRAtPowerTrend from "@/components/zwift/ZwiftHRAtPowerTrend";
 import ZwiftRidesTable from "@/components/zwift/ZwiftRidesTable";
 import ZwiftWattsTrend from "@/components/zwift/ZwiftWattsTrend";
 import ZwiftWeeklyChart from "@/components/zwift/ZwiftWeeklyChart";
-import { isConnected } from "@/lib/tokens";
+import { isIntervalsConfigured } from "@/lib/intervals";
 import { buildZwiftSummary } from "@/lib/zwift";
 
 export const dynamic = "force-dynamic";
 
 export default async function ZwiftPage() {
-  if (!(await isConnected())) {
+  if (!isIntervalsConfigured()) {
     return (
       <main className="min-h-screen flex items-center justify-center p-8 bg-black text-neutral-100">
         <div className="max-w-md text-center space-y-6">
-          <h1 className="text-2xl font-semibold">Strava not connected</h1>
-          <Link
-            href="/auth/strava"
-            className="inline-block rounded-lg bg-orange-500 hover:bg-orange-400 transition-colors px-6 py-3 font-medium"
-          >
-            Connect Strava
-          </Link>
+          <h1 className="text-2xl font-semibold">intervals.icu not configured</h1>
+          <p className="text-sm text-neutral-400">
+            Set INTERVALS_ICU_API_KEY and INTERVALS_ICU_ATHLETE_ID to load Zwift data.
+          </p>
         </div>
       </main>
     );
@@ -60,7 +57,7 @@ export default async function ZwiftPage() {
               <p className="mt-0.5 text-[11px] sm:text-xs text-neutral-400 flex flex-wrap items-center gap-x-2 gap-y-0.5">
                 <span>90 days</span>
                 <span className="text-neutral-700">·</span>
-                <span>Strava VirtualRide</span>
+                <span>intervals.icu VirtualRide</span>
                 <span className="text-neutral-700 hidden sm:inline">·</span>
                 <span className="text-neutral-500 hidden sm:inline">
                   {new Date(generatedAt).toLocaleTimeString([], {

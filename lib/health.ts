@@ -1,14 +1,14 @@
 import { cacheGet, cacheGetOrSetSwr, cacheScanDelete, cacheSet } from "./kv";
 import {
-  getActivities,
-  getActivityPhotos,
-  getActivityStreams,
-  getAthleteProfile,
-  getMostRecentActivity,
-  isVideoPhoto,
-  videoSrc,
-  type StravaActivity,
-} from "./strava";
+  getIntervalsActivitiesForDays,
+  getIntervalsAthlete,
+  getIntervalsStreams,
+  getMostRecentIntervalsActivity,
+  stravaIdOf,
+  type IntervalsActivity,
+} from "./intervals";
+import { getActivityPhotos, isVideoPhoto, videoSrc } from "./strava";
+import { isConnected as isStravaConnected } from "./tokens";
 import {
   avgHRAtPower,
   calcZoneDistribution,
@@ -31,7 +31,7 @@ export function defaultTargetWatts(): number {
 }
 
 export type ActivitySummary = {
-  id: number;
+  id: string;
   name: string;
   date: string;
   type: string;
@@ -77,7 +77,7 @@ export type HealthSummary = {
 const CYCLING_TYPES = new Set(["Ride", "VirtualRide", "EBikeRide", "Velomobile"]);
 
 export async function clearSummaryCache(): Promise<number> {
-  const patterns = ["summary:v1:*", "summary:v2:*", "summary:v3:*", "summary:v4:*", "summary:v5:*", "summary:v6:*", "summary:v7:*", "strava:latest:*", "strava:activities:*", "intervals:load:*", "garmin:week:*", "garmin:dash:*", "garmin:tile:*"];
+  const patterns = ["summary:v7:*", "summary:v8:*", "strava:latest:*", "strava:activities:*", "intervals:activities:*", "intervals:latest:*", "intervals:load:*", "garmin:week:*", "garmin:dash:*", "garmin:tile:*"];
   let deleted = 0;
   for (const pattern of patterns) {
     deleted += await cacheScanDelete(pattern);
@@ -92,25 +92,26 @@ type ActivityEnrichment = { zones: ZoneSeconds | null; avgHR: number | null };
  * average HR at the target wattage. Stream-shape (`streams.heartrate?.data`,
  * length-equality between channels) is hidden inside this function so the
  * summary loop stays oblivious. Result is cached per-activity for 30 days
- * since Strava activity data is immutable once uploaded.
+ * since activity data is immutable once uploaded.
  */
 async function enrichActivity(
-  a: StravaActivity,
+  a: IntervalsActivity,
   targetWatts: number
 ): Promise<ActivityEnrichment> {
-  // v3 = bumped after HR zone bands recalibrated (2026-05-05)
-  const cacheKey = `activity:v3:${a.id}:${targetWatts}`;
+  // v4 = switched stream source from Strava to intervals.icu
+  const cacheKey = `activity:v4:${a.id}:${targetWatts}`;
   const cached = await cacheGet<ActivityEnrichment>(cacheKey);
   if (cached) return cached;
 
-  const isCycling = CYCLING_TYPES.has(a.sport_type ?? a.type);
-  const hasHR = a.has_heartrate || (a.average_heartrate ?? 0) > 0;
+  const isCycling = CYCLING_TYPES.has(a.type ?? "");
+  const hasHR =
+    (a.stream_types?.includes("heartrate") ?? false) || (a.average_heartrate ?? 0) > 0;
 
   let result: ActivityEnrichment = { zones: null, avgHR: null };
   if (hasHR) {
     try {
       const keys = isCycling ? ["heartrate", "watts", "time"] : ["heartrate", "time"];
-      const streams = await getActivityStreams(a.id, keys);
+      const streams = await getIntervalsStreams(a.id, keys);
       const hr = streams.heartrate?.data ?? [];
       const time = streams.time?.data ?? [];
       const watts = streams.watts?.data ?? [];
@@ -130,19 +131,19 @@ async function enrichActivity(
 }
 
 function summariseActivity(
-  a: StravaActivity,
+  a: IntervalsActivity,
   zones: ZoneSeconds | null,
   media: ActivityMedia
 ): ActivitySummary {
   return {
     id: a.id,
-    name: a.name,
+    name: a.name ?? "Activity",
     date: a.start_date_local,
-    type: a.sport_type ?? a.type,
-    durationMin: Math.round(a.moving_time / 60),
-    distanceKm: Math.round((a.distance / 1000) * 10) / 10,
+    type: a.type ?? "Workout",
+    durationMin: Math.round((a.moving_time ?? 0) / 60),
+    distanceKm: Math.round(((a.distance ?? 0) / 1000) * 10) / 10,
     avgHR: a.average_heartrate ? Math.round(a.average_heartrate) : null,
-    avgWatts: a.average_watts ? Math.round(a.average_watts) : null,
+    avgWatts: a.icu_average_watts ? Math.round(a.icu_average_watts) : null,
     zone2Pct: zones ? Math.round((zones.zone2 / Math.max(1, totalSeconds(zones))) * 100) : null,
     zones,
     photoUrl: media.photoUrl,
@@ -158,22 +159,25 @@ type ActivityMedia = {
 };
 
 /**
- * Resolve the activity's primary photo URL, if any. Strava's
- * /athlete/activities list payload only carries `total_photo_count` —
- * URLs come from a per-activity call. Cached for 30 days since the
- * activity (and its uploaded media) is effectively immutable.
+ * Resolve the activity's primary photo URL, if any. Photos only exist on
+ * Strava, so this is best-effort: activities without a linked strava_id (or
+ * with Strava disconnected) get no media. Failures are cached too, so a dead
+ * Strava API costs at most one call per activity per 30 days.
  */
-async function fetchActivityMedia(a: StravaActivity): Promise<ActivityMedia> {
-  const count = a.total_photo_count ?? a.photo_count ?? 0;
-  if (count <= 0) return { photoUrl: null, videoUrl: null, photoCount: 0 };
+async function fetchActivityMedia(a: IntervalsActivity): Promise<ActivityMedia> {
+  const none: ActivityMedia = { photoUrl: null, videoUrl: null, photoCount: 0 };
+  const stravaId = stravaIdOf(a);
+  if (stravaId === null) return none;
 
-  const cacheKey = `photos:v3:${a.id}`;
+  const cacheKey = `photos:v4:${a.id}`;
   const cached = await cacheGet<ActivityMedia>(cacheKey);
   if (cached) return cached;
 
-  let result: ActivityMedia = { photoUrl: null, videoUrl: null, photoCount: count };
+  if (!(await isStravaConnected())) return none;
+
+  let result: ActivityMedia = none;
   try {
-    const photos = await getActivityPhotos(a.id, 1024);
+    const photos = await getActivityPhotos(stravaId, 1024);
     const stillImage = photos.find((p) => !isVideoPhoto(p)) ?? photos[0];
     let photoUrl: string | null = null;
     if (stillImage) {
@@ -236,12 +240,15 @@ function classifyTrend(points: HRAtPowerPoint[]): HealthSummary["fitnessScore"] 
 export async function buildHealthSummary(opts: { days?: number; targetWatts?: number } = {}): Promise<HealthSummary> {
   const days = opts.days ?? 30;
   const targetWatts = opts.targetWatts ?? defaultTargetWatts();
-  const cacheKey = `summary:v7:${days}:${targetWatts}`;
+  const cacheKey = `summary:v8:${days}:${targetWatts}`;
   return cacheGetOrSetSwr(cacheKey, 15 * 60, () => buildHealthSummaryFresh(days, targetWatts));
 }
 
 async function buildHealthSummaryFresh(days: number, targetWatts: number): Promise<HealthSummary> {
-  const [athlete, activities] = await Promise.all([getAthleteProfile(), getActivities({ days })]);
+  const [athlete, activities] = await Promise.all([
+    getIntervalsAthlete(),
+    getIntervalsActivitiesForDays(days),
+  ]);
 
   const summaries: ActivitySummary[] = [];
   const hrAtPower: HRAtPowerPoint[] = [];
@@ -257,7 +264,7 @@ async function buildHealthSummaryFresh(days: number, targetWatts: number): Promi
         date: a.start_date_local.slice(0, 10),
         hr: avgHR,
         watts: targetWatts,
-        type: a.sport_type ?? a.type,
+        type: a.type ?? "Workout",
       });
     }
   }
@@ -276,9 +283,9 @@ async function buildHealthSummaryFresh(days: number, targetWatts: number): Promi
 
   const summary: HealthSummary = {
     athlete: {
-      name: `${athlete.firstname} ${athlete.lastname}`.trim(),
-      weight: athlete.weight,
-      avatar: athlete.profile_medium ?? athlete.profile,
+      name: athlete.name,
+      weight: athlete.icu_weight ?? athlete.weight ?? undefined,
+      avatar: athlete.profile_medium ?? undefined,
     },
     thisWeek: {
       activities: thisWeekActs.length,
@@ -300,12 +307,12 @@ async function buildHealthSummaryFresh(days: number, targetWatts: number): Promi
 /**
  * Lightweight fetch of just the most-recent activity, enriched. Avoids
  * waiting on the 90-day summary build so the hero "Latest Activity" card
- * can paint quickly. Strava per-activity streams + media are cached for
+ * can paint quickly. Per-activity streams + media are cached for
  * 30 days inside enrichActivity / fetchActivityMedia.
  */
 export async function getLatestActivity(): Promise<ActivitySummary | null> {
   const targetWatts = defaultTargetWatts();
-  const a = await getMostRecentActivity();
+  const a = await getMostRecentIntervalsActivity();
   if (!a) return null;
   const [{ zones }, media] = await Promise.all([
     enrichActivity(a, targetWatts),
@@ -321,7 +328,7 @@ export async function getLatestActivity(): Promise<ActivitySummary | null> {
  */
 export async function getLatestDayActivities(): Promise<ActivitySummary[]> {
   const targetWatts = defaultTargetWatts();
-  const recent = await getActivities({ days: 7 });
+  const recent = await getIntervalsActivitiesForDays(7);
   if (recent.length === 0) return [];
   const latestDay = recent[0].start_date_local.slice(0, 10);
   const sameDay = recent.filter((a) => a.start_date_local.slice(0, 10) === latestDay);

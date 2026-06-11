@@ -18,7 +18,7 @@ import ZoneBreakdown from "./ZoneBreakdown";
 import type { ZoneSeconds } from "@/lib/zones";
 
 type Activity = {
-  id: number;
+  id: string;
   name: string;
   date: string;
   type: string;

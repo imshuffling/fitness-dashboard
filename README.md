@@ -1,8 +1,8 @@
 # Fitness Dashboard
 
-Self-hosted Next.js dashboard that pulls your data from Strava, Garmin
-Connect, and Intervals.icu, and exposes a Model Context Protocol (MCP)
-server so Claude can answer questions about your training.
+Self-hosted Next.js dashboard that pulls your data from Intervals.icu and
+Garmin Connect, and exposes a Model Context Protocol (MCP) server so
+Claude can answer questions about your training.
 
 <img width="3024" height="5410" alt="image" src="https://github.com/user-attachments/assets/cb7046c9-45e7-44ef-8b1c-48d20cce8ade" />
 
@@ -36,13 +36,18 @@ connect any integrations you want from `/auth/*`.
 
 | Integration | Required env vars | What you get | Setup |
 |---|---|---|---|
-| **Strava** | `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET`, `STRAVA_REDIRECT_URI` | Activities, HR/power streams, zone 2 trend | <https://www.strava.com/settings/api> |
+| **Intervals.icu** | `INTERVALS_ICU_API_KEY`, `INTERVALS_ICU_ATHLETE_ID` | Activities, HR/power/GPS streams, zone 2 trend, fitness/fatigue/form, athlete profile (FTP, weight) | <https://intervals.icu/settings> |
 | **Garmin Connect** | none — log in at `/auth/garmin` | Sleep, HRV, body battery, readiness, daily summary | Use your Garmin Connect email + password |
-| **Intervals.icu** | `INTERVALS_ICU_API_KEY`, `INTERVALS_ICU_ATHLETE_ID` | Fitness/fatigue/form, ramp rate, athlete profile (FTP, weight) | <https://intervals.icu/settings> |
+| **Strava** (optional) | `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET`, `STRAVA_REDIRECT_URI` | Activity photos/videos only | <https://www.strava.com/settings/api> |
 | **Redis cache** | `KV_REST_API_URL`, `KV_REST_API_TOKEN` | Token persistence + cached responses | Upstash, Vercel KV, or any Upstash-compatible REST API. Required in production. |
 
-All integrations except `DASHBOARD_PASSWORD` are optional. The dashboard
-degrades gracefully — connect only what you use.
+Intervals.icu is the primary data source — everything else is optional and
+the dashboard degrades gracefully.
+
+> **Strava note**: Strava-sourced activities cannot be read back via the
+> intervals.icu API, so sync your devices (Zwift, Garmin, …) directly to
+> intervals.icu. Strava is only queried for photos on activities that
+> intervals.icu links to a Strava activity.
 
 > **Garmin auth note**: there's no official public Garmin Connect API.
 > The `garmin-connect` package logs in with your username/password using
@@ -111,9 +116,11 @@ Try: *"How has my zone 2 training been this week?"* or *"Has my HR at
    project — env vars are auto-injected.
 3. Add the rest of your env vars from `.env.example` in Project
    Settings.
-4. Update Strava's **Authorization Callback Domain** to your Vercel
-   domain and set `STRAVA_REDIRECT_URI` accordingly.
-5. Deploy. Visit `/auth/strava` and `/auth/garmin` once to authorise.
+4. (Optional, photos only) Update Strava's **Authorization Callback
+   Domain** to your Vercel domain and set `STRAVA_REDIRECT_URI`
+   accordingly.
+5. Deploy. Visit `/auth/garmin` (and `/auth/strava` if using photos)
+   once to authorise.
 
 ## Project layout
 
@@ -124,10 +131,10 @@ app/
   auth/{strava,garmin}/...       # OAuth + login flows
   api/mcp/route.ts               # MCP transport endpoint
   api/health/route.ts            # Aggregated summary (HTTP)
-  api/strava|garmin/...          # Provider proxies
+  api/garmin/...                 # Provider proxies
 lib/
-  tokens.ts        # KV/file token store + refresh
-  strava.ts        # Strava client w/ 429 backoff
+  tokens.ts        # KV/file Strava token store + refresh
+  strava.ts        # Strava photos-only client
   garmin.ts        # Garmin Connect client + dashboard builder
   garminTokens.ts  # Garmin OAuth1/2 token persistence
   intervals.ts     # Intervals.icu client

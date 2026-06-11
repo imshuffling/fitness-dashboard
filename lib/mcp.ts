@@ -25,7 +25,7 @@ export function createMcpServer(): McpServer {
     {
       title: "Get fitness summary",
       description:
-        "Aggregated fitness summary across all sports. `thisWeek.activities` = total sessions, `thisWeek.rides` = cycling-only count. `weekly[]` buckets include `activities`, `rides`, and a `byType` breakdown keyed by Strava sport_type. Also returns HR-at-power trend, recent activities, and overall fitness trajectory (improving/stable/declining).",
+        "Aggregated fitness summary across all sports. `thisWeek.activities` = total sessions, `thisWeek.rides` = cycling-only count. `weekly[]` buckets include `activities`, `rides`, and a `byType` breakdown keyed by sport type. Also returns HR-at-power trend, recent activities, and overall fitness trajectory (improving/stable/declining).",
       inputSchema: {
         days: z
           .number()
@@ -54,7 +54,7 @@ export function createMcpServer(): McpServer {
     {
       title: "Get recent activities",
       description:
-        "List of recent activities (any sport — rides, runs, gym, walks, etc.) with HR, power, duration, and zone 2 percentage. Each entry has a `type` field (Strava sport_type, e.g. VirtualRide, Ride, Run, Walk, Workout, WeightTraining) — filter on that if you only want cycling.",
+        "List of recent activities (any sport — rides, runs, gym, walks, etc.) with HR, power, duration, and zone 2 percentage. Each entry has a `type` field (sport type, e.g. VirtualRide, Ride, Run, Walk, Workout, WeightTraining) — filter on that if you only want cycling.",
       inputSchema: {
         limit: z
           .number()
