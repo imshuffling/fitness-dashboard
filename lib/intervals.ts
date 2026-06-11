@@ -18,22 +18,13 @@ function athleteId(): string {
 }
 
 async function icu<T>(path: string): Promise<T> {
-  for (let attempt = 0; ; attempt++) {
-    let res: Response;
-    try {
-      res = await fetch(`${BASE}${path}`, {
-        headers: { Authorization: authHeader(), Accept: "application/json" },
-      });
-    } catch (err) {
-      if (attempt > 0) throw err;
-      continue;
-    }
-    if (res.status >= 500 && attempt === 0) continue;
-    if (!res.ok) {
-      throw new Error(`intervals.icu ${path} → ${res.status} ${await res.text()}`);
-    }
-    return res.json();
+  const res = await fetch(`${BASE}${path}`, {
+    headers: { Authorization: authHeader(), Accept: "application/json" },
+  });
+  if (!res.ok) {
+    throw new Error(`intervals.icu ${path} → ${res.status} ${await res.text()}`);
   }
+  return res.json();
 }
 
 export type IntervalsAthlete = {
@@ -42,9 +33,7 @@ export type IntervalsAthlete = {
   sex?: string;
   city?: string;
   ftp?: number;
-  weight?: number | null;
-  icu_weight?: number | null;
-  profile_medium?: string | null;
+  weight?: number;
   hr_rest?: number;
   threshold_hr?: number;
 };
@@ -77,44 +66,17 @@ export type IntervalsWellness = {
 export type IntervalsActivity = {
   id: string;
   start_date_local: string;
-  type: string | null;
-  name: string | null;
-  // "STRAVA"-sourced activities are stubs: the intervals.icu API may not
-  // re-expose Strava data, so every field except id/date/source is null.
-  source?: string | null;
-  strava_id?: number | string | null;
-  moving_time: number | null;
-  distance: number | null;
-  total_elevation_gain: number | null;
-  average_heartrate: number | null;
-  max_heartrate: number | null;
-  icu_average_watts: number | null;
-  icu_weighted_avg_watts: number | null;
-  icu_joules: number | null;
-  calories: number | null;
-  device_name: string | null;
-  external_id: string | null;
-  trainer: boolean | null;
-  stream_types: string[] | null;
+  type: string;
+  name: string;
+  moving_time: number;
   icu_training_load: number | null;
   icu_intensity: number | null;
   icu_efficiency_factor: number | null;
   icu_ftp: number | null;
   icu_pm_cp: number | null;
+  icu_average_watts: number | null;
+  average_heartrate: number | null;
 };
-
-/** Numeric Strava activity id this intervals activity was synced from, if any. */
-export function stravaIdOf(a: { strava_id?: number | string | null }): number | null {
-  const raw = a.strava_id;
-  if (raw == null) return null;
-  const n = typeof raw === "number" ? raw : parseInt(raw, 10);
-  return Number.isFinite(n) ? n : null;
-}
-
-/** Strava-sourced activities are API-blocked stubs — filter them out. */
-function isApiVisible(a: IntervalsActivity): boolean {
-  return a.source !== "STRAVA" && a.type != null;
-}
 
 export async function getIntervalsAthlete(): Promise<IntervalsAthlete> {
   return icu(`/athlete/${athleteId()}`);
@@ -134,55 +96,6 @@ export async function getIntervalsActivities(opts: {
 }): Promise<IntervalsActivity[]> {
   const params = new URLSearchParams({ oldest: opts.oldest, newest: opts.newest });
   return icu(`/athlete/${athleteId()}/activities?${params}`);
-}
-
-async function fetchActivitiesForDaysFresh(days: number): Promise<IntervalsActivity[]> {
-  const acts = await getIntervalsActivities({
-    oldest: formatTrainingDay(daysAgo(days)),
-    newest: formatTrainingDay(today()),
-  });
-  return acts
-    .filter(isApiVisible)
-    .sort((x, y) => y.start_date_local.localeCompare(x.start_date_local));
-}
-
-export async function getIntervalsActivitiesForDays(days: number): Promise<IntervalsActivity[]> {
-  return cacheGetOrSetSwr(`intervals:activities:v1:${days}`, 5 * 60, () =>
-    fetchActivitiesForDaysFresh(days),
-  );
-}
-
-export async function getMostRecentIntervalsActivity(): Promise<IntervalsActivity | null> {
-  return cacheGetOrSetSwr("intervals:latest:v1", 5 * 60, async () => {
-    const acts = await fetchActivitiesForDaysFresh(7);
-    return acts[0] ?? null;
-  });
-}
-
-export type IntervalsStreamSet = {
-  time?: { data: number[] };
-  heartrate?: { data: number[] };
-  watts?: { data: number[] };
-  cadence?: { data: number[] };
-  velocity_smooth?: { data: number[] };
-  // GPS: latitudes in `data`, longitudes in `data2`
-  latlng?: { data: number[]; data2: number[] };
-};
-
-export async function getIntervalsStreams(
-  id: string,
-  types: string[],
-): Promise<IntervalsStreamSet> {
-  const params = new URLSearchParams({ types: types.join(",") });
-  const arr = await icu<{ type: string; data: number[] | null; data2?: number[] | null }[]>(
-    `/activity/${id}/streams.json?${params}`,
-  );
-  const out: Record<string, { data: number[]; data2?: number[] }> = {};
-  for (const s of arr) {
-    if (!s.data) continue;
-    out[s.type] = { data: s.data, ...(s.data2 ? { data2: s.data2 } : {}) };
-  }
-  return out as IntervalsStreamSet;
 }
 
 /** CTL = fitness, ATL = fatigue, TSB = form (CTL - ATL). */
@@ -221,34 +134,28 @@ export type IntervalsActivityDetail = {
   recoveryTime: number | null;
 };
 
-export type IntervalsActivityFull = IntervalsActivity & {
-  elapsed_time: number | null;
-  max_watts: number | null;
-  icu_pa_hr: number | null;
-  icu_variability_index: number | null;
-  icu_eftp: number | null;
-  icu_recovery_time: number | null;
-};
-
-export async function getIntervalsActivityFull(id: string): Promise<IntervalsActivityFull> {
-  return icu(`/activity/${id}`);
-}
-
-export function intervalsMetricsFrom(
-  raw: Record<string, unknown>,
-): IntervalsActivityDetail {
-  const num = (k: string): number | null => {
-    const v = raw[k];
-    return typeof v === "number" && Number.isFinite(v) ? v : null;
-  };
-  return {
-    load: num("icu_training_load"),
-    intensity: num("icu_intensity"),
-    efficiencyFactor: num("icu_efficiency_factor"),
-    decoupling: num("icu_pa_hr"),
-    variabilityIndex: num("icu_variability_index"),
-    eftp: num("icu_eftp"),
-    ftpAt: num("icu_ftp"),
-    recoveryTime: num("icu_recovery_time"),
-  };
+export async function getIntervalsActivity(
+  stravaId: number,
+): Promise<IntervalsActivityDetail | null> {
+  try {
+    const raw = await icu<Record<string, unknown>>(
+      `/athlete/${athleteId()}/activity/i${stravaId}`,
+    );
+    const num = (k: string): number | null => {
+      const v = raw[k];
+      return typeof v === "number" && Number.isFinite(v) ? v : null;
+    };
+    return {
+      load: num("icu_training_load"),
+      intensity: num("icu_intensity"),
+      efficiencyFactor: num("icu_efficiency_factor"),
+      decoupling: num("icu_pa_hr"),
+      variabilityIndex: num("icu_variability_index"),
+      eftp: num("icu_eftp"),
+      ftpAt: num("icu_ftp"),
+      recoveryTime: num("icu_recovery_time"),
+    };
+  } catch {
+    return null;
+  }
 }

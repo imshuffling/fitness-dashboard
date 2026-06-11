@@ -4,8 +4,8 @@ import ZoneBreakdown from "@/components/ZoneBreakdown";
 import PhotoGallery from "@/components/rides/PhotoGallery";
 import PowerCurve from "@/components/rides/PowerCurve";
 import RideMap from "@/components/rides/RideMap";
-import { isIntervalsConfigured } from "@/lib/intervals";
 import { getRideDetail } from "@/lib/rides";
+import { isConnected } from "@/lib/tokens";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 export const dynamic = "force-dynamic";
@@ -73,21 +73,25 @@ function Stat({
 }
 
 export default async function RidePage({ params }: { params: Promise<{ id: string }> }) {
-  if (!isIntervalsConfigured()) {
+  if (!(await isConnected())) {
     return (
       <main className="min-h-screen flex items-center justify-center p-8 bg-black text-neutral-100">
         <div className="max-w-md text-center space-y-6">
-          <h1 className="text-2xl font-semibold">intervals.icu not configured</h1>
-          <p className="text-sm text-neutral-400">
-            Set INTERVALS_ICU_API_KEY and INTERVALS_ICU_ATHLETE_ID to load rides.
-          </p>
+          <h1 className="text-2xl font-semibold">Strava not connected</h1>
+          <Link
+            href="/auth/strava"
+            className="inline-block rounded-lg bg-orange-500 hover:bg-orange-400 transition-colors px-6 py-3 font-medium"
+          >
+            Connect Strava
+          </Link>
         </div>
       </main>
     );
   }
 
-  const { id } = await params;
-  if (!/^i?\d+$/.test(id)) notFound();
+  const { id: idStr } = await params;
+  const id = parseInt(idStr, 10);
+  if (!Number.isFinite(id)) notFound();
 
   let ride;
   try {
@@ -128,20 +132,29 @@ export default async function RidePage({ params }: { params: Promise<{ id: strin
                 <span>{rideTypeLabel(ride.type, ride.platform)}</span>
                 <span className="text-neutral-700">·</span>
                 <span>{formatRideDate(ride.date)}</span>
+                <span className="text-neutral-700">·</span>
+                <span className="inline-flex items-center gap-1 tabular-nums" title="Kudos">
+                  <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden
+                    className="h-3 w-3 fill-orange-400"
+                  >
+                    <path d="M2 21h4V9H2v12zM22 10c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L13.17 1 7.59 6.59C7.22 6.95 7 7.45 7 8v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-1z" />
+                  </svg>
+                  {ride.kudosCount}
+                </span>
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            {ride.stravaId !== null && (
-              <a
-                href={`https://www.strava.com/activities/${ride.stravaId}`}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-full border border-neutral-800 bg-neutral-900/60 px-3 py-1.5 text-xs text-neutral-300 hover:bg-neutral-800 hover:text-neutral-100 transition"
-              >
-                Open in Strava
-              </a>
-            )}
+            <a
+              href={`https://www.strava.com/activities/${ride.id}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-full border border-neutral-800 bg-neutral-900/60 px-3 py-1.5 text-xs text-neutral-300 hover:bg-neutral-800 hover:text-neutral-100 transition"
+            >
+              Open in Strava
+            </a>
             <Link
               href="/"
               className="inline-flex items-center gap-1.5 rounded-full border border-neutral-800 bg-neutral-900/60 px-3 py-1.5 text-xs text-neutral-300 hover:bg-neutral-800 hover:text-neutral-100 transition"
@@ -167,7 +180,7 @@ export default async function RidePage({ params }: { params: Promise<{ id: strin
             <div className="flex items-baseline justify-between mb-3">
               <h3 className="text-sm uppercase tracking-wider text-neutral-500">intervals.icu</h3>
               <a
-                href={`https://intervals.icu/activities/${ride.id}`}
+                href={`https://intervals.icu/activities/i${ride.id}`}
                 target="_blank"
                 rel="noreferrer"
                 className="text-[11px] text-neutral-500 hover:text-neutral-300"
@@ -238,15 +251,13 @@ export default async function RidePage({ params }: { params: Promise<{ id: strin
           </div>
         </section>
 
-        {ride.photos.length > 0 && (
-          <section className="rounded-xl bg-neutral-900 border border-neutral-800 p-3 sm:p-5">
-            <div className="flex items-baseline justify-between mb-3">
-              <h3 className="text-sm uppercase tracking-wider text-neutral-500">Media</h3>
-              <span className="text-[11px] text-neutral-500">{ride.photos.length}</span>
-            </div>
-            <PhotoGallery photos={ride.photos} />
-          </section>
-        )}
+        <section className="rounded-xl bg-neutral-900 border border-neutral-800 p-3 sm:p-5">
+          <div className="flex items-baseline justify-between mb-3">
+            <h3 className="text-sm uppercase tracking-wider text-neutral-500">Media</h3>
+            <span className="text-[11px] text-neutral-500">{ride.photos.length}</span>
+          </div>
+          <PhotoGallery photos={ride.photos} />
+        </section>
       </div>
     </main>
   );
