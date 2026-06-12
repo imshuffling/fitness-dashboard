@@ -54,7 +54,7 @@ export default function RecentActivityCard({ activity }: { activity: ActivitySum
   const href = `/rides/${activity.id}`;
 
   const media = activity.videoUrl ? (
-    <div className="h-44 w-full md:h-auto md:w-64 md:shrink-0 md:self-stretch bg-neutral-800">
+    <div className="h-44 w-full @3xl:h-auto @3xl:w-64 @3xl:shrink-0 @3xl:self-stretch bg-neutral-800">
       <VideoPlayer
         src={activity.videoUrl}
         poster={activity.photoUrl ?? undefined}
@@ -64,20 +64,20 @@ export default function RecentActivityCard({ activity }: { activity: ActivitySum
   ) : activity.photoUrl ? (
     <Link
       href={href}
-      className="relative h-44 w-full overflow-hidden md:h-auto md:w-64 md:shrink-0 md:self-stretch block"
+      className="relative h-44 w-full overflow-hidden @3xl:h-auto @3xl:w-64 @3xl:shrink-0 @3xl:self-stretch block"
     >
       <Image
         src={activity.photoUrl}
         alt=""
         fill
-        sizes="(max-width: 768px) 100vw, 256px"
+        sizes="(max-width: 640px) 100vw, 50vw"
         className="object-cover transition-transform duration-300 group-hover:scale-105"
       />
     </Link>
   ) : (
     <Link
       href={href}
-      className="relative flex h-44 w-full items-center justify-center overflow-hidden bg-neutral-950 md:h-auto md:w-64 md:shrink-0 md:self-stretch"
+      className="relative flex h-44 w-full items-center justify-center overflow-hidden bg-neutral-950 @3xl:h-auto @3xl:w-64 @3xl:shrink-0 @3xl:self-stretch"
     >
       <div
         className={`absolute h-32 w-32 rounded-full blur-3xl transition-transform duration-300 group-hover:scale-125 ${glow}`}
@@ -89,8 +89,8 @@ export default function RecentActivityCard({ activity }: { activity: ActivitySum
   );
 
   return (
-    <div className="group h-full overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900/60 transition-colors hover:border-neutral-700">
-      <div className="flex h-full flex-col md:flex-row">
+    <div className="group @container h-full overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900/60 transition-colors hover:border-neutral-700">
+      <div className="flex h-full flex-col @3xl:flex-row">
         {media}
 
         <Link href={href} className="flex flex-1 flex-col p-4 sm:p-5 min-w-0">
@@ -106,7 +106,7 @@ export default function RecentActivityCard({ activity }: { activity: ActivitySum
             </span>
           </div>
 
-          <dl className="mt-4 grid grid-cols-2 gap-x-3 gap-y-4 border-t border-neutral-800/80 pt-4 sm:grid-cols-4">
+          <dl className="mt-4 grid grid-cols-2 gap-x-3 gap-y-4 border-t border-neutral-800/80 pt-4 @xl:grid-cols-4">
             <Stat label="Duration" value={hours > 0 ? `${hours}h ${mins}m` : `${mins}m`} />
             {activity.distanceKm > 0 && (
               <Stat label="Distance" value={`${activity.distanceKm.toFixed(1)} km`} />

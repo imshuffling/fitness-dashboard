@@ -175,10 +175,16 @@ async function LatestActivitySection() {
       ? "Today's Workouts"
       : "Today's Workout"
     : "Latest Activity";
+  const gridCols =
+    activities.length === 1
+      ? ""
+      : activities.length === 2
+        ? "sm:grid-cols-2"
+        : "sm:grid-cols-2 xl:grid-cols-3";
   return (
     <section className="space-y-3">
       <h2 className="text-2xl font-semibold px-1">{heading}</h2>
-      <div className="grid auto-rows-fr gap-3 sm:gap-4">
+      <div className={`grid auto-rows-fr gap-3 sm:gap-4 ${gridCols}`}>
         {activities.map((activity) => (
           <RecentActivityCard key={activity.id} activity={activity} />
         ))}
