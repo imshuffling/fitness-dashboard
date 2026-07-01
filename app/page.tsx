@@ -48,7 +48,6 @@ import {
 } from "@/lib/garmin";
 import { isGarminConnected } from "@/lib/garminTokens";
 import { getTrainingLoadTrend, isIntervalsConfigured, type LoadPoint } from "@/lib/intervals";
-import { isConnected } from "@/lib/tokens";
 import { daysAgo, formatTrainingDay, parseTrainingDay, today } from "@/lib/trainingDay";
 
 export const dynamic = "force-dynamic";
@@ -90,10 +89,10 @@ function SummaryErrorCard({ error }: { error: string }) {
     <Card>
       <p className="text-xs text-red-400 break-all">Failed to load summary: {error}</p>
       <Link
-        href="/auth/strava"
+        href="/auth/garmin"
         className="mt-3 inline-block rounded-lg bg-orange-500 hover:bg-orange-400 transition-colors px-3 py-1.5 text-xs font-medium"
       >
-        Reconnect Strava
+        Reconnect Garmin
       </Link>
     </Card>
   );
@@ -499,19 +498,19 @@ async function CalendarSection() {
 }
 
 export default async function Home() {
-  if (!(await isConnected())) {
+  if (!(await isGarminConnected())) {
     return (
       <main className="min-h-screen flex items-center justify-center p-8 bg-black text-neutral-100">
         <div className="max-w-md text-center space-y-6">
           <h1 className="text-3xl font-semibold">Fitness Dashboard</h1>
           <p className="text-neutral-400">
-            Connect your Strava account to see your activity history, HR trends, and zone analytics.
+            Connect your Garmin account to see your activity history, HR trends, and zone analytics.
           </p>
           <Link
-            href="/auth/strava"
+            href="/auth/garmin"
             className="inline-block rounded-lg bg-orange-500 hover:bg-orange-400 transition-colors px-6 py-3 font-medium"
           >
-            Connect Strava
+            Connect Garmin
           </Link>
         </div>
       </main>

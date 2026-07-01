@@ -49,6 +49,9 @@ export async function loginAndSaveGarmin(username: string, password: string): Pr
   _client = client;
 }
 
+/** Shared, token-backed Garmin client for the activity adapter (lib/garminActivities.ts). */
+export { getClient as getGarminClient, persist as persistGarminTokens };
+
 export type GarminDailySummary = {
   date: string;
   steps: number | null;

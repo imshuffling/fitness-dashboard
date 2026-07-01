@@ -334,12 +334,12 @@ function ActivityModal({ activity, onClose }: { activity: Activity; onClose: () 
             Open detail →
           </a>
           <a
-            href={`https://www.strava.com/activities/${activity.id}`}
+            href={`https://connect.garmin.com/modern/activity/${activity.id}`}
             target="_blank"
             rel="noreferrer"
             className="text-xs text-neutral-400 hover:text-neutral-200"
           >
-            Open on Strava ↗
+            Open on Garmin ↗
           </a>
         </div>
       </div>

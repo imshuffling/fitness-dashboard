@@ -3,22 +3,22 @@ import ZwiftHRAtPowerTrend from "@/components/zwift/ZwiftHRAtPowerTrend";
 import ZwiftRidesTable from "@/components/zwift/ZwiftRidesTable";
 import ZwiftWattsTrend from "@/components/zwift/ZwiftWattsTrend";
 import ZwiftWeeklyChart from "@/components/zwift/ZwiftWeeklyChart";
-import { isConnected } from "@/lib/tokens";
+import { isGarminConnected } from "@/lib/garminTokens";
 import { buildZwiftSummary } from "@/lib/zwift";
 
 export const dynamic = "force-dynamic";
 
 export default async function ZwiftPage() {
-  if (!(await isConnected())) {
+  if (!(await isGarminConnected())) {
     return (
       <main className="min-h-screen flex items-center justify-center p-8 bg-black text-neutral-100">
         <div className="max-w-md text-center space-y-6">
-          <h1 className="text-2xl font-semibold">Strava not connected</h1>
+          <h1 className="text-2xl font-semibold">Garmin not connected</h1>
           <Link
-            href="/auth/strava"
+            href="/auth/garmin"
             className="inline-block rounded-lg bg-orange-500 hover:bg-orange-400 transition-colors px-6 py-3 font-medium"
           >
-            Connect Strava
+            Connect Garmin
           </Link>
         </div>
       </main>
@@ -60,7 +60,7 @@ export default async function ZwiftPage() {
               <p className="mt-0.5 text-[11px] sm:text-xs text-neutral-400 flex flex-wrap items-center gap-x-2 gap-y-0.5">
                 <span>90 days</span>
                 <span className="text-neutral-700">·</span>
-                <span>Strava VirtualRide</span>
+                <span>VirtualRide</span>
                 <span className="text-neutral-700 hidden sm:inline">·</span>
                 <span className="text-neutral-500 hidden sm:inline">
                   {new Date(generatedAt).toLocaleTimeString([], {

@@ -5,7 +5,7 @@ import PhotoGallery from "@/components/rides/PhotoGallery";
 import PowerCurve from "@/components/rides/PowerCurve";
 import RideMap from "@/components/rides/RideMap";
 import { getRideDetail } from "@/lib/rides";
-import { isConnected } from "@/lib/tokens";
+import { isGarminConnected } from "@/lib/garminTokens";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 export const dynamic = "force-dynamic";
@@ -73,16 +73,16 @@ function Stat({
 }
 
 export default async function RidePage({ params }: { params: Promise<{ id: string }> }) {
-  if (!(await isConnected())) {
+  if (!(await isGarminConnected())) {
     return (
       <main className="min-h-screen flex items-center justify-center p-8 bg-black text-neutral-100">
         <div className="max-w-md text-center space-y-6">
-          <h1 className="text-2xl font-semibold">Strava not connected</h1>
+          <h1 className="text-2xl font-semibold">Garmin not connected</h1>
           <Link
-            href="/auth/strava"
+            href="/auth/garmin"
             className="inline-block rounded-lg bg-orange-500 hover:bg-orange-400 transition-colors px-6 py-3 font-medium"
           >
-            Connect Strava
+            Connect Garmin
           </Link>
         </div>
       </main>
@@ -148,12 +148,12 @@ export default async function RidePage({ params }: { params: Promise<{ id: strin
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <a
-              href={`https://www.strava.com/activities/${ride.id}`}
+              href={`https://connect.garmin.com/modern/activity/${ride.id}`}
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-1.5 rounded-full border border-neutral-800 bg-neutral-900/60 px-3 py-1.5 text-xs text-neutral-300 hover:bg-neutral-800 hover:text-neutral-100 transition"
             >
-              Open in Strava
+              Open in Garmin
             </a>
             <Link
               href="/"

@@ -1,16 +1,17 @@
 import { cacheGet, cacheSet } from "./kv";
 import {
+  findIntervalsActivityByStart,
   getIntervalsActivity,
   isIntervalsConfigured,
   type IntervalsActivityDetail,
 } from "./intervals";
 import {
   getActivityDetail,
-  getActivityPhotos,
   getActivityStreams,
-  type StravaPhoto,
+  type GarminActivityDetail,
   type StreamSet,
-} from "./strava";
+} from "./garminActivities";
+import { getActivityPhotos, type StravaPhoto } from "./strava";
 import { calcZoneDistribution, type ZoneSeconds } from "./zones";
 
 export type PowerCurvePoint = { duration: number; watts: number };
@@ -42,38 +43,6 @@ export type RideDetail = {
 
 const POWER_DURATIONS = [5, 15, 30, 60, 120, 300, 600, 1200, 1800, 3600];
 
-function decodePolyline(encoded: string): [number, number][] {
-  let index = 0;
-  let lat = 0;
-  let lng = 0;
-  const coords: [number, number][] = [];
-  while (index < encoded.length) {
-    let result = 0;
-    let shift = 0;
-    let b: number;
-    do {
-      b = encoded.charCodeAt(index++) - 63;
-      result |= (b & 0x1f) << shift;
-      shift += 5;
-    } while (b >= 0x20);
-    const dlat = result & 1 ? ~(result >> 1) : result >> 1;
-    lat += dlat;
-
-    result = 0;
-    shift = 0;
-    do {
-      b = encoded.charCodeAt(index++) - 63;
-      result |= (b & 0x1f) << shift;
-      shift += 5;
-    } while (b >= 0x20);
-    const dlng = result & 1 ? ~(result >> 1) : result >> 1;
-    lng += dlng;
-
-    coords.push([lat / 1e5, lng / 1e5]);
-  }
-  return coords;
-}
-
 function computePowerCurve(watts: number[], time: number[]): PowerCurvePoint[] {
   const n = watts.length;
   if (n < 2 || watts.length !== time.length) return [];
@@ -103,24 +72,10 @@ function computePowerCurve(watts: number[], time: number[]): PowerCurvePoint[] {
   return out;
 }
 
-type StravaActivityDetail = Awaited<ReturnType<typeof getActivityDetail>> & {
-  total_elevation_gain?: number;
-  max_heartrate?: number;
-  weighted_average_watts?: number;
-  max_watts?: number;
-  kilojoules?: number;
-  kudos_count?: number;
-  device_name?: string;
-  external_id?: string;
-  trainer?: boolean;
-  map?: { summary_polyline?: string; polyline?: string };
-};
-
-function detectPlatform(detail: StravaActivityDetail): VirtualPlatform | null {
+function detectPlatform(detail: GarminActivityDetail): VirtualPlatform | null {
   const dn = (detail.device_name ?? "").toLowerCase();
-  const ext = (detail.external_id ?? "").toLowerCase();
   const name = (detail.name ?? "").toLowerCase();
-  const haystack = `${dn} ${ext} ${name}`;
+  const haystack = `${dn} ${name}`;
   if (haystack.includes("zwift")) return "zwift";
   if (haystack.includes("mywhoosh") || haystack.includes("my whoosh") || haystack.includes("my-whoosh")) {
     return "mywhoosh";
@@ -131,20 +86,24 @@ function detectPlatform(detail: StravaActivityDetail): VirtualPlatform | null {
 }
 
 export async function getRideDetail(id: number): Promise<RideDetail> {
-  const cacheKey = `ride:v4:${id}`;
+  const cacheKey = `ride:v5:${id}`;
   const cached = await cacheGet<RideDetail>(cacheKey);
   if (cached) return cached;
 
-  const detail = (await getActivityDetail(id)) as StravaActivityDetail;
+  const detail = await getActivityDetail(id);
 
-  const [photos, streams, intervals] = await Promise.all([
-    (detail.total_photo_count ?? detail.photo_count ?? 0) > 0
-      ? getActivityPhotos(id, 2048).catch(() => [] as StravaPhoto[])
+  // Link to intervals.icu by start time (Zwift/Garmin rides aren't keyed by
+  // garmin_id there). The match also yields the Strava id used for photos.
+  const match = isIntervalsConfigured()
+    ? await findIntervalsActivityByStart(detail.start_date_local).catch(() => null)
+    : null;
+
+  const [streams, intervals, photos] = await Promise.all([
+    getActivityStreams(id).catch(() => ({}) as StreamSet),
+    match ? getIntervalsActivity(match.intervalsId).catch(() => null) : Promise.resolve(null),
+    match?.stravaId != null
+      ? getActivityPhotos(match.stravaId, 2048).catch(() => [] as StravaPhoto[])
       : Promise.resolve([] as StravaPhoto[]),
-    getActivityStreams(id, ["heartrate", "watts", "time"]).catch(() => ({}) as StreamSet),
-    isIntervalsConfigured()
-      ? getIntervalsActivity(id).catch(() => null)
-      : Promise.resolve(null),
   ]);
 
   const hr = streams.heartrate?.data ?? [];
@@ -157,9 +116,6 @@ export async function getRideDetail(id: number): Promise<RideDetail> {
       ? computePowerCurve(watts, time)
       : [];
 
-  const polylineStr = detail.map?.polyline || detail.map?.summary_polyline || "";
-  const polyline = polylineStr ? decodePolyline(polylineStr) : [];
-
   const result: RideDetail = {
     id: detail.id,
     name: detail.name,
@@ -168,9 +124,8 @@ export async function getRideDetail(id: number): Promise<RideDetail> {
     platform: detectPlatform(detail),
     durationMin: Math.round(detail.moving_time / 60),
     distanceKm: Math.round((detail.distance / 1000) * 10) / 10,
-    elevationGainM: detail.total_elevation_gain
-      ? Math.round(detail.total_elevation_gain)
-      : null,
+    elevationGainM:
+      detail.total_elevation_gain != null ? Math.round(detail.total_elevation_gain) : null,
     avgHR: detail.average_heartrate ? Math.round(detail.average_heartrate) : null,
     maxHR: detail.max_heartrate ? Math.round(detail.max_heartrate) : null,
     avgWatts: detail.average_watts ? Math.round(detail.average_watts) : null,
@@ -178,10 +133,10 @@ export async function getRideDetail(id: number): Promise<RideDetail> {
     weightedAvgWatts: detail.weighted_average_watts
       ? Math.round(detail.weighted_average_watts)
       : null,
-    kilojoules: detail.kilojoules ? Math.round(detail.kilojoules) : null,
-    kudosCount: detail.kudos_count ?? 0,
+    kilojoules: detail.kilojoules,
+    kudosCount: 0,
     photos,
-    polyline,
+    polyline: detail.polyline,
     powerCurve,
     zones,
     intervals,

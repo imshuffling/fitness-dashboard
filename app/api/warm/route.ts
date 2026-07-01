@@ -11,7 +11,6 @@ import {
 import { isGarminConnected } from "@/lib/garminTokens";
 import { buildHealthSummary, getLatestActivity } from "@/lib/health";
 import { getTrainingLoadTrend, isIntervalsConfigured } from "@/lib/intervals";
-import { isConnected } from "@/lib/tokens";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -25,8 +24,8 @@ export async function GET(req: Request) {
     }
   }
 
-  if (!(await isConnected())) {
-    return NextResponse.json({ skipped: "strava not connected" });
+  if (!(await isGarminConnected())) {
+    return NextResponse.json({ skipped: "garmin not connected" });
   }
 
   const tasks: Array<Promise<unknown>> = [

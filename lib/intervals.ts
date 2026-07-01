@@ -65,6 +65,8 @@ export type IntervalsWellness = {
 
 export type IntervalsActivity = {
   id: string;
+  source: string | null;
+  strava_id: string | number | null;
   start_date_local: string;
   type: string;
   name: string;
@@ -134,13 +136,52 @@ export type IntervalsActivityDetail = {
   recoveryTime: number | null;
 };
 
+/** Intervals activity linkage resolved from an activity's local start time. */
+export type IntervalsMatch = { intervalsId: string; stravaId: number | null };
+
+/**
+ * Garmin/Zwift activities aren't keyed by Garmin id in intervals.icu (the
+ * `garmin_id` field is usually null for Zwift-synced rides). But the local
+ * start time matches to the second, so link on that. Returns the intervals
+ * activity id (for detail lookup) and its `strava_id` (for photo linkage).
+ * `source: "STRAVA"` rows are API-blocked stubs — skip them.
+ */
+export async function findIntervalsActivityByStart(
+  startLocalIso: string,
+): Promise<IntervalsMatch | null> {
+  const day = startLocalIso.slice(0, 10);
+  if (!day) return null;
+  let acts: IntervalsActivity[];
+  try {
+    acts = await getIntervalsActivities({ oldest: day, newest: day });
+  } catch {
+    return null;
+  }
+  const target = Date.parse(startLocalIso.slice(0, 19));
+  let best: IntervalsActivity | null = null;
+  let bestDelta = Infinity;
+  for (const a of acts) {
+    if (a.source === "STRAVA") continue;
+    const t = Date.parse((a.start_date_local || "").slice(0, 19));
+    if (!Number.isFinite(t)) continue;
+    const delta = Math.abs(t - target);
+    if (delta < bestDelta) {
+      bestDelta = delta;
+      best = a;
+    }
+  }
+  if (!best || bestDelta > 120_000) return null; // within 2 minutes
+  const sid = best.strava_id != null ? Number(best.strava_id) : NaN;
+  return { intervalsId: best.id, stravaId: Number.isFinite(sid) ? sid : null };
+}
+
 export async function getIntervalsActivity(
-  stravaId: number,
+  intervalsId: string,
 ): Promise<IntervalsActivityDetail | null> {
   try {
-    const raw = await icu<Record<string, unknown>>(
-      `/athlete/${athleteId()}/activity/i${stravaId}`,
-    );
+    // Correct detail path is /activity/{id}; the old /athlete/{id}/activity/{id}
+    // form 404s (silently returned null for months).
+    const raw = await icu<Record<string, unknown>>(`/activity/${intervalsId}`);
     const num = (k: string): number | null => {
       const v = raw[k];
       return typeof v === "number" && Number.isFinite(v) ? v : null;

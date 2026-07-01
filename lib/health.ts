@@ -1,14 +1,11 @@
 import { cacheGet, cacheGetOrSetSwr, cacheScanDelete, cacheSet } from "./kv";
 import {
   getActivities,
-  getActivityPhotos,
   getActivityStreams,
   getAthleteProfile,
   getMostRecentActivity,
-  isVideoPhoto,
-  videoSrc,
-  type StravaActivity,
-} from "./strava";
+  type GarminActivity,
+} from "./garminActivities";
 import {
   avgHRAtPower,
   calcZoneDistribution,
@@ -77,7 +74,7 @@ export type HealthSummary = {
 const CYCLING_TYPES = new Set(["Ride", "VirtualRide", "EBikeRide", "Velomobile"]);
 
 export async function clearSummaryCache(): Promise<number> {
-  const patterns = ["summary:v1:*", "summary:v2:*", "summary:v3:*", "summary:v4:*", "summary:v5:*", "summary:v6:*", "summary:v7:*", "strava:latest:*", "strava:activities:*", "intervals:load:*", "garmin:week:*", "garmin:dash:*", "garmin:tile:*"];
+  const patterns = ["summary:v1:*", "summary:v2:*", "summary:v3:*", "summary:v4:*", "summary:v5:*", "summary:v6:*", "summary:v7:*", "garminact:*", "intervals:load:*", "garmin:week:*", "garmin:dash:*", "garmin:tile:*"];
   let deleted = 0;
   for (const pattern of patterns) {
     deleted += await cacheScanDelete(pattern);
@@ -95,7 +92,7 @@ type ActivityEnrichment = { zones: ZoneSeconds | null; avgHR: number | null };
  * since Strava activity data is immutable once uploaded.
  */
 async function enrichActivity(
-  a: StravaActivity,
+  a: GarminActivity,
   targetWatts: number
 ): Promise<ActivityEnrichment> {
   // v3 = bumped after HR zone bands recalibrated (2026-05-05)
@@ -109,8 +106,7 @@ async function enrichActivity(
   let result: ActivityEnrichment = { zones: null, avgHR: null };
   if (hasHR) {
     try {
-      const keys = isCycling ? ["heartrate", "watts", "time"] : ["heartrate", "time"];
-      const streams = await getActivityStreams(a.id, keys);
+      const streams = await getActivityStreams(a.id);
       const hr = streams.heartrate?.data ?? [];
       const time = streams.time?.data ?? [];
       const watts = streams.watts?.data ?? [];
@@ -130,7 +126,7 @@ async function enrichActivity(
 }
 
 function summariseActivity(
-  a: StravaActivity,
+  a: GarminActivity,
   zones: ZoneSeconds | null,
   media: ActivityMedia
 ): ActivitySummary {
@@ -158,42 +154,11 @@ type ActivityMedia = {
 };
 
 /**
- * Resolve the activity's primary photo URL, if any. Strava's
- * /athlete/activities list payload only carries `total_photo_count` —
- * URLs come from a per-activity call. Cached for 30 days since the
- * activity (and its uploaded media) is effectively immutable.
+ * Garmin Connect carries no social photos, so summary cards are photo-free.
+ * Activity photos (via the Strava linkage) are resolved lazily on the ride
+ * detail page instead — see getRideDetail in lib/rides.ts.
  */
-async function fetchActivityMedia(a: StravaActivity): Promise<ActivityMedia> {
-  const count = a.total_photo_count ?? a.photo_count ?? 0;
-  if (count <= 0) return { photoUrl: null, videoUrl: null, photoCount: 0 };
-
-  const cacheKey = `photos:v3:${a.id}`;
-  const cached = await cacheGet<ActivityMedia>(cacheKey);
-  if (cached) return cached;
-
-  let result: ActivityMedia = { photoUrl: null, videoUrl: null, photoCount: count };
-  try {
-    const photos = await getActivityPhotos(a.id, 1024);
-    const stillImage = photos.find((p) => !isVideoPhoto(p)) ?? photos[0];
-    let photoUrl: string | null = null;
-    if (stillImage) {
-      const sizes = Object.keys(stillImage.urls)
-        .map((k) => parseInt(k, 10))
-        .filter((n) => Number.isFinite(n))
-        .sort((x, y) => y - x);
-      const key = sizes[0]?.toString() ?? Object.keys(stillImage.urls)[0];
-      photoUrl = key ? stillImage.urls[key] ?? null : null;
-    }
-    const videoItem = photos.find((p) => isVideoPhoto(p));
-    const videoUrl = videoItem ? videoSrc(videoItem) : null;
-    result = { photoUrl, videoUrl, photoCount: photos.length };
-  } catch {
-    // photo fetch failed — leave nulls
-  }
-
-  await cacheSet(cacheKey, result, 30 * 86400);
-  return result;
-}
+const EMPTY_MEDIA: ActivityMedia = { photoUrl: null, videoUrl: null, photoCount: 0 };
 
 function bucketByWeek(activities: ActivitySummary[]): WeekBucket[] {
   const map = new Map<string, WeekBucket>();
@@ -247,11 +212,8 @@ async function buildHealthSummaryFresh(days: number, targetWatts: number): Promi
   const hrAtPower: HRAtPowerPoint[] = [];
 
   for (const a of activities) {
-    const [{ zones, avgHR }, media] = await Promise.all([
-      enrichActivity(a, targetWatts),
-      fetchActivityMedia(a),
-    ]);
-    summaries.push(summariseActivity(a, zones, media));
+    const { zones, avgHR } = await enrichActivity(a, targetWatts);
+    summaries.push(summariseActivity(a, zones, EMPTY_MEDIA));
     if (avgHR !== null) {
       hrAtPower.push({
         date: a.start_date_local.slice(0, 10),
@@ -278,7 +240,7 @@ async function buildHealthSummaryFresh(days: number, targetWatts: number): Promi
     athlete: {
       name: `${athlete.firstname} ${athlete.lastname}`.trim(),
       weight: athlete.weight,
-      avatar: athlete.profile_medium ?? athlete.profile,
+      avatar: athlete.profile,
     },
     thisWeek: {
       activities: thisWeekActs.length,
@@ -307,11 +269,8 @@ export async function getLatestActivity(): Promise<ActivitySummary | null> {
   const targetWatts = defaultTargetWatts();
   const a = await getMostRecentActivity();
   if (!a) return null;
-  const [{ zones }, media] = await Promise.all([
-    enrichActivity(a, targetWatts),
-    fetchActivityMedia(a),
-  ]);
-  return summariseActivity(a, zones, media);
+  const { zones } = await enrichActivity(a, targetWatts);
+  return summariseActivity(a, zones, EMPTY_MEDIA);
 }
 
 /**
@@ -327,11 +286,8 @@ export async function getLatestDayActivities(): Promise<ActivitySummary[]> {
   const sameDay = recent.filter((a) => a.start_date_local.slice(0, 10) === latestDay);
   return Promise.all(
     sameDay.map(async (a) => {
-      const [{ zones }, media] = await Promise.all([
-        enrichActivity(a, targetWatts),
-        fetchActivityMedia(a),
-      ]);
-      return summariseActivity(a, zones, media);
+      const { zones } = await enrichActivity(a, targetWatts);
+      return summariseActivity(a, zones, EMPTY_MEDIA);
     }),
   );
 }

@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Fitness Dashboard",
-  description: "Personal Strava analytics + Claude MCP",
+  description: "Personal Garmin analytics + Claude MCP",
 };
 
 export default function RootLayout({
