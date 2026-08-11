@@ -13,6 +13,8 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "dgalywyr863hv.cloudfront.net" },
       { protocol: "https", hostname: "*.cloudfront.net" },
       { protocol: "https", hostname: "*.strava.com" },
+      { protocol: "https", hostname: "s3.amazonaws.com", pathname: "/garmin-connect-prod/**" },
+      { protocol: "https", hostname: "*.garmin.com" },
     ],
   },
 };
