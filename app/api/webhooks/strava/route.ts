@@ -28,9 +28,19 @@ export async function POST(req: Request) {
 
   let body: ExternalActivityInput;
   try {
-    body = (await req.json()) as ExternalActivityInput;
+    const contentType = req.headers.get("content-type") ?? "";
+    if (contentType.includes("json")) {
+      body = (await req.json()) as ExternalActivityInput;
+    } else {
+      // Form fields (urlencoded/multipart) — no-code senders like Make
+      // mangle hand-typed JSON, so this is the more robust path.
+      const form = await req.formData();
+      body = Object.fromEntries(
+        [...form.entries()].map(([k, v]) => [k, String(v)]),
+      ) as ExternalActivityInput;
+    }
   } catch {
-    return NextResponse.json({ error: "invalid JSON" }, { status: 400 });
+    return NextResponse.json({ error: "unparseable body" }, { status: 400 });
   }
 
   const activity = await recordExternalActivity(body);
