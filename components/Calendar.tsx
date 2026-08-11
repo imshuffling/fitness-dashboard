@@ -28,6 +28,7 @@ type Activity = {
   avgWatts: number | null;
   zone2Pct: number | null;
   zones: ZoneSeconds | null;
+  sourceUrl?: string | null;
 };
 
 type View = "week" | "month";
@@ -327,20 +328,33 @@ function ActivityModal({ activity, onClose }: { activity: Activity; onClose: () 
             </div>
           )}
         <div className="mt-4 flex gap-4">
-          <a
-            href={`/rides/${activity.id}`}
-            className="text-xs text-orange-400 hover:text-orange-300"
-          >
-            Open detail →
-          </a>
-          <a
-            href={`https://connect.garmin.com/modern/activity/${activity.id}`}
-            target="_blank"
-            rel="noreferrer"
-            className="text-xs text-neutral-400 hover:text-neutral-200"
-          >
-            Open on Garmin ↗
-          </a>
+          {activity.sourceUrl ? (
+            <a
+              href={activity.sourceUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-xs text-orange-400 hover:text-orange-300"
+            >
+              Open on Strava ↗
+            </a>
+          ) : (
+            <>
+              <a
+                href={`/rides/${activity.id}`}
+                className="text-xs text-orange-400 hover:text-orange-300"
+              >
+                Open detail →
+              </a>
+              <a
+                href={`https://connect.garmin.com/modern/activity/${activity.id}`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs text-neutral-400 hover:text-neutral-200"
+              >
+                Open on Garmin ↗
+              </a>
+            </>
+          )}
         </div>
       </div>
     </div>

@@ -11,6 +11,7 @@ const PUBLIC_PATHS = [
   "/api/intervals",
   "/api/garmin/wellness",
   "/api/warm",
+  "/api/webhooks",
   "/auth/strava/callback",
   "/favicon.ico",
   "/.well-known",

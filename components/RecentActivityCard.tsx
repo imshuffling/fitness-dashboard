@@ -51,7 +51,7 @@ export default function RecentActivityCard({ activity }: { activity: ActivitySum
   const mins = activity.durationMin % 60;
   const icon = TYPE_ICONS[activity.type] ?? "•";
   const glow = TYPE_GLOW[activity.type] ?? "bg-neutral-500/20";
-  const href = `/rides/${activity.id}`;
+  const href = activity.sourceUrl ?? `/rides/${activity.id}`;
 
   const media = activity.videoUrl ? (
     <div className="h-44 w-full @3xl:h-auto @3xl:w-64 @3xl:shrink-0 @3xl:self-stretch bg-neutral-800">

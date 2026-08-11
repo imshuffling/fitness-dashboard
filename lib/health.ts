@@ -1,11 +1,10 @@
 import { cacheGet, cacheGetOrSetSwr, cacheScanDelete, cacheSet } from "./kv";
 import {
-  getActivities,
   getActivityStreams,
   getAthleteProfile,
-  getMostRecentActivity,
   type GarminActivity,
 } from "./garminActivities";
+import { getMergedActivities, type ExternalActivity } from "./externalActivities";
 import {
   avgHRAtPower,
   calcZoneDistribution,
@@ -41,6 +40,7 @@ export type ActivitySummary = {
   photoUrl: string | null;
   videoUrl: string | null;
   photoCount: number;
+  sourceUrl: string | null;
 };
 
 export type WeekBucket = {
@@ -126,7 +126,7 @@ async function enrichActivity(
 }
 
 function summariseActivity(
-  a: GarminActivity,
+  a: ExternalActivity,
   zones: ZoneSeconds | null,
   media: ActivityMedia
 ): ActivitySummary {
@@ -144,6 +144,7 @@ function summariseActivity(
     photoUrl: media.photoUrl,
     videoUrl: media.videoUrl,
     photoCount: media.photoCount,
+    sourceUrl: a.external_url ?? null,
   };
 }
 
@@ -206,7 +207,7 @@ export async function buildHealthSummary(opts: { days?: number; targetWatts?: nu
 }
 
 async function buildHealthSummaryFresh(days: number, targetWatts: number): Promise<HealthSummary> {
-  const [athlete, activities] = await Promise.all([getAthleteProfile(), getActivities({ days })]);
+  const [athlete, activities] = await Promise.all([getAthleteProfile(), getMergedActivities({ days })]);
 
   const summaries: ActivitySummary[] = [];
   const hrAtPower: HRAtPowerPoint[] = [];
@@ -267,7 +268,7 @@ async function buildHealthSummaryFresh(days: number, targetWatts: number): Promi
  */
 export async function getLatestActivity(): Promise<ActivitySummary | null> {
   const targetWatts = defaultTargetWatts();
-  const a = await getMostRecentActivity();
+  const [a] = await getMergedActivities({ days: 7 });
   if (!a) return null;
   const { zones } = await enrichActivity(a, targetWatts);
   return summariseActivity(a, zones, EMPTY_MEDIA);
@@ -280,7 +281,7 @@ export async function getLatestActivity(): Promise<ActivitySummary | null> {
  */
 export async function getLatestDayActivities(): Promise<ActivitySummary[]> {
   const targetWatts = defaultTargetWatts();
-  const recent = await getActivities({ days: 7 });
+  const recent = await getMergedActivities({ days: 7 });
   if (recent.length === 0) return [];
   const latestDay = recent[0].start_date_local.slice(0, 10);
   const sameDay = recent.filter((a) => a.start_date_local.slice(0, 10) === latestDay);
