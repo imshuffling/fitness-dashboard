@@ -45,6 +45,8 @@ const TYPE_COLORS: Record<string, string> = {
   Workout: "bg-yellow-500",
   Yoga: "bg-pink-500",
   Swim: "bg-cyan-500",
+  FieldHockey: "bg-lime-500",
+  Hockey: "bg-lime-500",
 };
 
 const TYPE_ICONS: Record<string, string> = {
@@ -71,6 +73,8 @@ const TYPE_ICONS: Record<string, string> = {
   Kayaking: "🛶",
   StandUpPaddling: "🏄",
   Surfing: "🏄",
+  FieldHockey: "🏑",
+  Hockey: "🏑",
 };
 
 function colorFor(type: string): string {

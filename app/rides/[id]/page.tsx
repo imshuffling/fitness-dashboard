@@ -25,6 +25,8 @@ const TYPE_ICONS: Record<string, string> = {
   Yoga: "🧘",
   Swim: "🏊",
   Rowing: "🚣",
+  FieldHockey: "🏑",
+  Hockey: "🏑",
 };
 
 const PLATFORM_LABEL: Record<string, string> = {

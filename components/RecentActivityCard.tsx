@@ -18,6 +18,8 @@ const TYPE_ICONS: Record<string, string> = {
   Yoga: "🧘",
   Swim: "🏊",
   Rowing: "🚣",
+  FieldHockey: "🏑",
+  Hockey: "🏑",
 };
 
 const TYPE_GLOW: Record<string, string> = {
@@ -35,6 +37,8 @@ const TYPE_GLOW: Record<string, string> = {
   Yoga: "bg-pink-500/25",
   Swim: "bg-cyan-500/25",
   Rowing: "bg-teal-500/25",
+  FieldHockey: "bg-lime-500/25",
+  Hockey: "bg-lime-500/25",
 };
 
 function formatDate(iso: string): string {
