@@ -86,7 +86,8 @@ function detectPlatform(detail: GarminActivityDetail): VirtualPlatform | null {
 }
 
 export async function getRideDetail(id: number): Promise<RideDetail> {
-  const cacheKey = `ride:v5:${id}`;
+  // v6 = detail fields fixed after the nested-summaryDTO bug cached empties
+  const cacheKey = `ride:v6:${id}`;
   const cached = await cacheGet<RideDetail>(cacheKey);
   if (cached) return cached;
 
@@ -122,7 +123,7 @@ export async function getRideDetail(id: number): Promise<RideDetail> {
     date: detail.start_date_local,
     type: detail.sport_type ?? detail.type,
     platform: detectPlatform(detail),
-    durationMin: Math.round(detail.moving_time / 60),
+    durationMin: Math.round(detail.elapsed_time / 60),
     distanceKm: Math.round((detail.distance / 1000) * 10) / 10,
     elevationGainM:
       detail.total_elevation_gain != null ? Math.round(detail.total_elevation_gain) : null,
