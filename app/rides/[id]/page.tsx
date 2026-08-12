@@ -61,14 +61,13 @@ function Stat({
   value: string | number | null;
   unit?: string;
 }) {
+  if (value === null) return null;
   return (
     <div className="rounded-xl bg-neutral-900 border border-neutral-800 p-3">
       <div className="text-[11px] uppercase tracking-wider text-neutral-500">{label}</div>
       <div className="mt-1 text-xl font-semibold tabular-nums">
-        {value ?? "—"}
-        {value !== null && unit && (
-          <span className="ml-1 text-sm font-normal text-neutral-500">{unit}</span>
-        )}
+        {value}
+        {unit && <span className="ml-1 text-sm font-normal text-neutral-500">{unit}</span>}
       </div>
     </div>
   );
@@ -168,7 +167,7 @@ export default async function RidePage({ params }: { params: Promise<{ id: strin
 
         <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <Stat label="Duration" value={`${hours}h ${mins}m`} />
-          <Stat label="Distance" value={ride.distanceKm.toFixed(1)} unit="km" />
+          <Stat label="Distance" value={ride.distanceKm > 0 ? ride.distanceKm.toFixed(1) : null} unit="km" />
           <Stat label="Elevation" value={ride.elevationGainM} unit="m" />
           <Stat label="kJ" value={ride.kilojoules} />
           <Stat label="Avg watts" value={ride.avgWatts} unit="W" />
