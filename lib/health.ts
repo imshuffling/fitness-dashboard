@@ -135,7 +135,9 @@ function summariseActivity(
     name: a.name,
     date: a.start_date_local,
     type: a.sport_type ?? a.type,
-    durationMin: Math.round(a.moving_time / 60),
+    // Elapsed, not moving: HR zones cover the whole recording, so stop-start
+    // sports (hockey, gym) would otherwise show zone minutes > duration.
+    durationMin: Math.round(a.elapsed_time / 60),
     distanceKm: Math.round((a.distance / 1000) * 10) / 10,
     avgHR: a.average_heartrate ? Math.round(a.average_heartrate) : null,
     avgWatts: a.average_watts ? Math.round(a.average_watts) : null,
