@@ -238,15 +238,59 @@ export type GarminActivityDetail = GarminActivity & {
   kilojoules: number | null;
 };
 
+/** Single-activity endpoint nests everything the list returns flat. */
+type RawGarminActivityDetail = {
+  activityId: number;
+  activityName: string;
+  activityTypeDTO?: { typeKey?: string };
+  metadataDTO?: { deviceApplicationInstallationId?: number };
+  summaryDTO?: {
+    startTimeLocal?: string;
+    startTimeGMT?: string;
+    duration?: number;
+    elapsedDuration?: number;
+    movingDuration?: number;
+    distance?: number;
+    averageHR?: number;
+    maxHR?: number;
+    averagePower?: number;
+    maxPower?: number;
+    normalizedPower?: number;
+    elevationGain?: number;
+  };
+};
+
+function flattenDetail(d: RawGarminActivityDetail): RawGarminActivity {
+  const s = d.summaryDTO ?? {};
+  return {
+    activityId: d.activityId,
+    activityName: d.activityName,
+    activityType: { typeKey: d.activityTypeDTO?.typeKey },
+    startTimeGMT: s.startTimeGMT,
+    startTimeLocal: s.startTimeLocal,
+    elapsedDuration: s.elapsedDuration,
+    movingDuration: s.movingDuration,
+    duration: s.duration,
+    distance: s.distance,
+    averageHR: s.averageHR,
+    maxHR: s.maxHR,
+    avgPower: s.averagePower,
+    maxPower: s.maxPower,
+    normPower: s.normalizedPower,
+    elevationGain: s.elevationGain,
+    deviceId: d.metadataDTO?.deviceApplicationInstallationId,
+  };
+}
+
 export async function getActivityDetail(id: number): Promise<GarminActivityDetail> {
   const c = await getGarminClient();
   const [summary, details] = await Promise.all([
-    c.getActivity({ activityId: id }) as unknown as Promise<RawGarminActivity & Record<string, unknown>>,
+    c.getActivity({ activityId: id }) as unknown as Promise<RawGarminActivityDetail>,
     getDetails(id),
   ]);
   await persistGarminTokens(c);
 
-  const base = mapActivity(summary);
+  const base = mapActivity(flattenDetail(summary));
   const poly = details?.geoPolylineDTO?.polyline ?? [];
   const polyline: [number, number][] = poly
     .filter((p) => typeof p?.lat === "number" && typeof p?.lon === "number")
@@ -261,9 +305,11 @@ export async function getActivityDetail(id: number): Promise<GarminActivityDetai
   return {
     ...base,
     device_name:
-      (summary.deviceId != null ? String(summary.deviceId) : "") +
+      (summary.metadataDTO?.deviceApplicationInstallationId != null
+        ? String(summary.metadataDTO.deviceApplicationInstallationId)
+        : "") +
       " " +
-      (summary.activityType?.typeKey ?? ""),
+      (summary.activityTypeDTO?.typeKey ?? ""),
     polyline,
     kilojoules,
   };
