@@ -236,13 +236,15 @@ export default async function RidePage({ params }: { params: Promise<{ id: strin
         </section>
 
         <section className="grid lg:grid-cols-2 gap-4">
-          <div className="rounded-xl bg-neutral-900 border border-neutral-800 p-3 sm:p-5">
-            <div className="flex items-baseline justify-between mb-3">
-              <h3 className="text-sm uppercase tracking-wider text-neutral-500">Power curve</h3>
-              <span className="text-[11px] text-neutral-500">max avg by duration</span>
+          {ride.powerCurve.length > 0 && (
+            <div className="rounded-xl bg-neutral-900 border border-neutral-800 p-3 sm:p-5">
+              <div className="flex items-baseline justify-between mb-3">
+                <h3 className="text-sm uppercase tracking-wider text-neutral-500">Power curve</h3>
+                <span className="text-[11px] text-neutral-500">max avg by duration</span>
+              </div>
+              <PowerCurve points={ride.powerCurve} />
             </div>
-            <PowerCurve points={ride.powerCurve} />
-          </div>
+          )}
           <div className="rounded-xl bg-neutral-900 border border-neutral-800 p-3 sm:p-5">
             <div className="flex items-baseline justify-between mb-3">
               <h3 className="text-sm uppercase tracking-wider text-neutral-500">HR zones</h3>
