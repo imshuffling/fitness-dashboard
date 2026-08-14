@@ -209,7 +209,11 @@ export async function buildHealthSummary(opts: { days?: number; targetWatts?: nu
 }
 
 async function buildHealthSummaryFresh(days: number, targetWatts: number): Promise<HealthSummary> {
-  const [athlete, activities] = await Promise.all([getAthleteProfile(), getMergedActivities({ days })]);
+  const [athlete, activities] = await Promise.all([
+    getAthleteProfile(),
+    // Long windows need a deeper Garmin page or old rides fall off the list.
+    getMergedActivities({ days, per_page: days > 90 ? 250 : 100 }),
+  ]);
 
   const summaries: ActivitySummary[] = [];
   const hrAtPower: HRAtPowerPoint[] = [];

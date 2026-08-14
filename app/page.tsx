@@ -67,6 +67,8 @@ const PULSE_OX_ZONES = [
 ];
 
 const getSummary = cache((): Promise<HealthSummary> => buildHealthSummary({ days: 90 }));
+// Calendar pages back through months — needs a longer window than the stat cards.
+const getCalendarSummary = cache((): Promise<HealthSummary> => buildHealthSummary({ days: 180 }));
 const getGarminLinked = cache((): Promise<boolean> => isGarminConnected());
 
 type TrainingLoadResult =
@@ -480,7 +482,7 @@ async function TrainingLoadSection() {
 async function CalendarSection() {
   let summary: HealthSummary;
   try {
-    summary = await getSummary();
+    summary = await getCalendarSummary();
   } catch (e) {
     return <SummaryErrorCard error={(e as Error).message} />;
   }
