@@ -7,6 +7,7 @@ import {
   defaultTargetWatts,
 } from "./health";
 import {
+  findIntervalsActivityByStart,
   getIntervalsAthlete,
   getTrainingLoadTrend,
   isIntervalsConfigured,
@@ -183,5 +184,73 @@ export function createMcpServer(): McpServer {
     }
   );
 
+  server.registerTool(
+    "update_strava_activity",
+    {
+      title: "Update Strava activity",
+      description:
+        "Set the name and/or description of a Strava activity, e.g. to log the sets/reps of a gym session. Pass `activityId` from get_recent_activities (resolved to the Strava id automatically), or `stravaActivityId` if known. Writes via a Make.com scenario, so it may take a few seconds to appear on Strava.",
+      inputSchema: {
+        activityId: z
+          .number()
+          .int()
+          .optional()
+          .describe("Activity `id` from get_recent_activities"),
+        stravaActivityId: z.number().int().optional().describe("Strava activity id, if already known"),
+        name: z.string().min(1).max(255).optional().describe("New activity title"),
+        description: z.string().max(10000).optional().describe("New activity description (plain text, newlines ok)"),
+      },
+    },
+    async ({ activityId, stravaActivityId, name, description }) => {
+      const fail = (text: string) => ({ content: [{ type: "text" as const, text }], isError: true });
+
+      const webhook = process.env.MAKE_STRAVA_UPDATE_WEBHOOK_URL;
+      if (!webhook) return fail("MAKE_STRAVA_UPDATE_WEBHOOK_URL not configured.");
+      if (name === undefined && description === undefined) return fail("Provide `name` and/or `description`.");
+
+      const stravaId = stravaActivityId ?? (activityId != null ? await resolveStravaId(activityId) : null);
+      if (stravaId == null) {
+        return fail(
+          activityId != null
+            ? `Couldn't resolve a Strava id for activity ${activityId}. It may not have synced to Strava/intervals.icu yet — retry shortly or pass stravaActivityId.`
+            : "Provide `activityId` or `stravaActivityId`."
+        );
+      }
+
+      const body = new URLSearchParams({ id: String(stravaId) });
+      if (name !== undefined) body.set("name", name);
+      if (description !== undefined) body.set("description", description);
+
+      const res = await fetch(webhook, { method: "POST", body });
+      if (!res.ok) return fail(`Make webhook ${res.status}: ${await res.text()}`);
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Queued update for https://www.strava.com/activities/${stravaId} (${[
+              name !== undefined && "name",
+              description !== undefined && "description",
+            ]
+              .filter(Boolean)
+              .join(" + ")}).`,
+          },
+        ],
+      };
+    }
+  );
+
   return server;
+}
+
+async function resolveStravaId(activityId: number): Promise<number | null> {
+  const { recentActivities } = await buildHealthSummary({ days: 14 });
+  const activity = recentActivities.find((a) => a.id === activityId);
+  if (!activity) return null;
+
+  const fromUrl = activity.sourceUrl?.match(/strava\.com\/activities\/(\d+)/)?.[1];
+  if (fromUrl) return Number(fromUrl);
+
+  const match = await findIntervalsActivityByStart(activity.date);
+  return match?.stravaId ?? null;
 }
